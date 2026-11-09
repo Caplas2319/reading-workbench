@@ -101,7 +101,7 @@ body.nf{padding-bottom:0}
   <section id="secRead" hidden>
     <div class="bar">
       <label><input type="checkbox" id="showZh"> 显示译文</label>
-      <button id="bTrAll">翻译全文</button><button id="bClr">重新载入</button><button id="bEdit">编辑全文</button>
+      <button id="bTrAll">翻译全文</button><button id="bMerge">智能合并</button><button id="bEdit">编辑全文</button>
       <span id="trState"></span>
     </div>
     <div id="reader"></div>
@@ -444,7 +444,6 @@ $('#hT').onclick=()=>{
   if(V.view==='read'&&curCh){const t=(prompt('章节名',curCh.title)||'').trim();if(t){curCh.title=t;save();$('#hT').textContent=t}}
   else if(V.view==='book')renameBook(V.book);
 };
-$('#bClr').onclick=()=>{if(!confirm('清空本章的文章和问答，重新粘贴？建议先导出。'))return;S.paras=[];S.groups=[];quotes=[];$('#paste').value='';save();renderReader();renderAll()};
 $('#bSelAll').onclick=()=>{if(sel.size===CH.length)sel.clear();else CH.forEach(c=>sel.add(c.id));renderBook()};
 $('#bDelSel').onclick=async()=>{
   if(!sel.size||!confirm(`删除所选 ${sel.size} 章？不可恢复，建议先导出。`))return;
@@ -690,6 +689,30 @@ $('#mvOk').onclick=async()=>{
   const n=moving.length,tb=BK.find(b=>b.id===tid);
   CH=CH.filter(c=>!sel.has(c.id));sel.clear();renderBook();$('#dmv').close();
   toast(`已移动 ${n} 章到「${tb?tb.title:''}」`);
+};
+/* 智能合并碎段：只在“不像一段结尾”的地方合并 */
+$('#bMerge').onclick=()=>{
+  const old=S.paras;if(old.length<2)return toast('没有需要合并的段落');
+  const END=/[.!?…。！？”"’'»)\]]$/,HY=/[\p{L}][-\u2010\u00ad]$/u,LOW=/^\p{Ll}/u;
+  const groups=[],map=[];let cur=null;
+  old.forEach((p,i)=>{
+    const t=p.en.trim();
+    if(cur){
+      const a=cur.text;
+      let m=null;
+      if(HY.test(a)&&/^\p{L}/u.test(t))m=a.slice(0,-1)+t;
+      else if(!END.test(a)||LOW.test(t))m=a+(/[—–]$/.test(a)?'':' ')+t;
+      if(m!==null){cur.text=m;cur.src.push(i);map[i]=groups.length-1;return}
+    }
+    cur={text:t,src:[i]};groups.push(cur);map[i]=groups.length-1;
+  });
+  if(groups.length===old.length)return toast('没有需要合并的段落');
+  const paras=groups.map(g=>({en:g.text,zh:g.src.length===1?old[g.src[0]].zh:''}));
+  const lost=old.filter(p=>p.zh).length-paras.filter(p=>p.zh).length;
+  if(!confirm(`将 ${old.length} 段合并为 ${groups.length} 段`+(lost>0?`，有 ${lost} 段译文会丢失`:'')+'。继续？'))return;
+  S.groups.forEach(g=>g.quotes.forEach(q=>{q.i=map[q.i]!==undefined?map[q.i]:Math.min(q.i,paras.length-1)}));
+  quotes.forEach(q=>{q.i=map[q.i]!==undefined?map[q.i]:Math.min(q.i,paras.length-1)});
+  S.paras=paras;save();renderReader();renderAll();toast(`已合并：${old.length} → ${paras.length} 段`);
 };
 /* 编辑全文（重新分段） */
 $('#bEdit').onclick=()=>{$('#edText').value=S.paras.map(p=>p.en).join('\n\n');$('#ded').showModal()};
