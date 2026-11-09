@@ -19,7 +19,7 @@ button:disabled{opacity:.5}
 main{max-width:760px;margin:0 auto;padding:14px}
 section{margin-bottom:22px}
 textarea,input[type=text],input[type=password],select{width:100%;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
-#paste{height:180px}
+#paste{height:min(62vh,480px);resize:vertical}
 .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0;color:var(--mute);font-size:13px}
 .bar label{display:flex;gap:4px;align-items:center}
 #reader .p{position:relative;padding:6px 0 6px 12px;border-left:3px solid transparent;font-family:"Noto Serif SC","Songti SC",Georgia,serif;font-size:16.5px;line-height:1.75}
@@ -38,6 +38,7 @@ textarea,input[type=text],input[type=password],select{width:100%;background:var(
 .quote b{color:var(--acc);font-weight:600}
 .qq{font-weight:600;margin:6px 0 4px;white-space:pre-wrap}
 .aa{white-space:pre-wrap;word-break:break-word}
+.tw{overflow-x:auto;margin:6px 0}.tw table{border-collapse:collapse;font-size:13.5px;white-space:normal}.tw th,.tw td{border:1px solid var(--line);padding:4px 8px;text-align:left;vertical-align:top;min-width:4.5em}.tw th{background:var(--bg)}
 code{background:var(--bg);padding:0 4px;border-radius:4px;font-size:.92em}
 #qbar{position:sticky;top:50px;z-index:4;background:var(--bg);padding:6px 0;border-bottom:1px solid var(--line);margin:0 0 10px}
 footer{position:fixed;left:0;right:0;bottom:0;background:var(--bg);border-top:1px solid var(--line);padding:8px 14px calc(10px + env(safe-area-inset-bottom,0px))}
@@ -65,16 +66,33 @@ button.del{color:var(--dg);border-color:var(--dg);background:transparent;font-si
 .qi input{width:20px;height:20px;margin-top:2px;flex:none}
 .qt{flex:1;font-size:14px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;cursor:pointer}
 .qi.on .qt b{color:var(--acc)}.qi:not(.on) .qt{color:var(--mute)}
+.li{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.li input{width:20px;height:20px;flex:none}
+.lt{flex:1;min-width:0;cursor:pointer}.lt b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.meta{font-size:12.5px;color:var(--mute)}
+#hT{cursor:default}
+[hidden]{display:none!important}
+body.nf{padding-bottom:0}
+.tk{font-size:11.5px;color:var(--mute);flex:none;min-width:34px;text-align:right;margin-top:2px}
 </style>
 </head>
 <body>
 <header>
-  <h1>阅读工作台</h1>
-  <button id="bNew">新文章</button>
-  <button id="bImp">导入</button><button id="bExp">导出</button><input type="file" id="impFile" accept=".json,application/json" hidden>
+  <button id="bBack" hidden>‹ 返回</button>
+  <h1 id="hT">阅读工作台</h1>
   <button id="bSet">⚙</button>
 </header>
 <main>
+<div id="vShelf">
+  <div class="bar"><button class="pri" id="bNewBook">新建文件夹</button><button id="bImp">导入</button><button id="bEpub">导入 EPUB</button><input type="file" id="epubFile" accept=".epub,application/epub+zip" hidden><input type="file" id="impFile" accept=".json,application/json" hidden></div>
+  <div id="shelf"></div>
+</div>
+<div id="vBook" hidden>
+  <div class="bar"><button class="pri" id="bNewCh">新文章</button><button id="bExp">导出本书</button><button id="bRenBook">改书名</button></div>
+  <div class="bar"><button id="bSelAll">全选</button><button class="del" id="bDelSel">删除所选</button><span id="selInfo"></span></div>
+  <div id="chlist"></div>
+</div>
+<div id="vRead" hidden>
   <section id="secPaste">
     <textarea id="paste" placeholder="把文章粘贴到这里，按空行分段"></textarea>
     <div class="bar"><button class="pri" id="bLoad">载入文章</button></div>
@@ -82,23 +100,16 @@ button.del{color:var(--dg);border-color:var(--dg);background:transparent;font-si
   <section id="secRead" hidden>
     <div class="bar">
       <label><input type="checkbox" id="showZh"> 显示译文</label>
-      <button id="bTrAll">翻译全文</button>
+      <button id="bTrAll">翻译全文</button><button id="bClr">重新载入</button>
       <span id="trState"></span>
     </div>
     <div id="reader"></div>
   </section>
   <section id="secQA" hidden>
-    <div id="qbar">
-      <div class="bar" style="margin:0">
-        <label><input type="checkbox" id="useArt"> 带全文</label>
-        <span id="qinfo"></span>
-        </div><div class="bar" style="margin:4px 0 0">
-        <button id="bAll">全开</button><button id="bNone">全关</button><button id="bLast">最近3组</button><button id="bQ">队列</button>
-      </div>
-    </div>
+    <div id="qbar"><div class="bar" style="margin:0"><button id="bSum">摘要</button><button id="bQ">提示词队列</button></div></div>
     <div id="cards"></div>
   </section>
-</main>
+</div></main>
 <button id="fab" class="pri">引用选中</button>
 <button id="fabBack" class="pri">↩ 回到阅读位置</button>
 <footer><div class="in">
@@ -113,7 +124,9 @@ button.del{color:var(--dg);border-color:var(--dg);background:transparent;font-si
   </div>
 </div></footer>
 <div id="toast"></div>
-<dialog id="dq"><div class="row" style="margin-top:0"><b>发送队列</b><span id="dqInfo" style="color:var(--mute);font-size:13px"></span><span class="sp"></span><button id="dqAll"></button><button id="dqClose">关闭</button></div><div id="qlist"></div></dialog>
+<dialog id="dq"><div class="row" style="margin-top:0"><b>提示词队列</b><span id="dqInfo" style="color:var(--mute);font-size:13px"></span><span class="sp"></span><button id="dqAll"></button><button id="dqClose">关闭</button></div><div id="qlist"></div></dialog>
+<dialog id="dsum"><div class="row" style="margin-top:0"><b id="dsT">摘要</b><span class="sp"></span><button id="dsGen">生成</button><button class="pri" id="dsDone">完成</button></div>
+<textarea id="dsText" style="height:240px;margin-top:8px" placeholder="点「生成」，或直接手写、修改；关闭时自动保存"></textarea></dialog>
 
 <dialog id="dlg">
   <b>设置</b><div class="tabs"><button id="tabApi" class="act">API 设置</button><button id="tabPref">偏好设置</button></div><div id="paneApi">
@@ -129,14 +142,22 @@ button.del{color:var(--dg);border-color:var(--dg);background:transparent;font-si
   <input type="password" id="fKey">
   <label>模型</label>
   <div class="row" style="margin-top:0"><select id="fModel"></select><button id="fGet">获取模型</button></div>
+  <label>问答提示词（每个服务商独立保存）</label>
+  <textarea id="fSys" style="height:80px"></textarea>
   <label>翻译所用服务商</label>
   <select id="tProv"></select>
   <label>翻译所用模型</label>
   <select id="tModel"></select>
-  <label>问答系统提示（所有服务商共用）</label>
-  <textarea id="fSys" style="height:80px"></textarea>
+  
+  
   <label>翻译提示词</label>
   <textarea id="fTr" style="height:64px"></textarea>
+  <label>总结所用服务商</label>
+  <select id="sProv"></select>
+  <label>总结所用模型</label>
+  <select id="sModel"></select>
+  <label>总结提示词</label>
+  <textarea id="fSm" style="height:64px"></textarea>
   <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="fAuto"> 新回答默认放入队列</label>
   </div>
   <div id="panePref" hidden>
@@ -151,19 +172,58 @@ button.del{color:var(--dg);border-color:var(--dg);background:transparent;font-si
 <script>
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const md=s=>esc(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/`([^`\n]+)`/g,'<code>$1</code>');
-const DEF={autoOn:false,showZh:false,qEn:true,qZh:true,trSys:'把用户给出的英文翻译成流畅、准确的中文，只输出译文。',sys:'你是阅读助手。用户在阅读一篇文章，会引用其中的片段提问。请结合全文与引用内容，用中文清晰、准确地回答。'};
-const PDEF={name:'默认',fmt:'openai',base:'https://api.openai.com/v1',key:'',model:'',models:[]};
-let S={cfg:{...DEF},providers:[],cur:0,tr:{prov:0,model:''},paras:[],groups:[],useArt:true};
-try{const d=JSON.parse(localStorage.getItem('rw1')||'{}');S={...S,...d,cfg:{...DEF,...(d.cfg||{})}}}catch(e){}
-if(!S.providers.length){const c=S.cfg;S.providers=[{...PDEF,id:Date.now(),fmt:c.fmt||PDEF.fmt,base:c.base||PDEF.base,key:c.key||'',model:c.model||''}];S.cur=S.providers[0].id}
-const save=()=>{try{localStorage.setItem('rw1',JSON.stringify(S))}catch(e){}};
+const inl=s=>esc(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/`([^`\n]+)`/g,'<code>$1</code>');
+const cells=l=>l.trim().replace(/^\||\|$/g,'').split('|').map(c=>c.trim());
+const isRow=l=>/^\s*\|.*\|\s*$/.test(l),isSep=l=>/^\s*\|?[\s:|-]*-{2,}[\s:|-]*\|?\s*$/.test(l);
+const md=s=>{const L=String(s).split('\n');let o='',i=0;
+  while(i<L.length){
+    if(isRow(L[i])&&i+1<L.length&&isSep(L[i+1])){
+      const h=cells(L[i]),rows=[];i+=2;
+      while(i<L.length&&isRow(L[i]))rows.push(cells(L[i++]));
+      o+='<div class="tw"><table><tr>'+h.map(c=>`<th>${inl(c)}</th>`).join('')+'</tr>'+rows.map(r=>'<tr>'+r.map(c=>`<td>${inl(c)}</td>`).join('')+'</tr>').join('')+'</table></div>';
+    }else{const m=L[i].match(/^#{1,6}\s+(.*)$/);o+=(m?'<b>'+inl(m[1])+'</b>':inl(L[i]))+'\n';i++}
+  }
+  return o.replace(/\n$/,'')};
+const DEF={autoOn:false,showZh:false,qEn:true,qZh:true,smSys:'请用中文为这一章写简短摘要：列出主要人物、关键术语及其含义、主要情节或论点，便于阅读后续章节时参考。控制在300字以内。',trSys:'把用户给出的英文翻译成流畅、准确的中文，只输出译文。',sys:'你是阅读助手。用户在阅读一篇文章，会引用其中的片段提问。请结合全文与引用内容，用中文清晰、准确地回答。'};
+const PDEF={name:'默认',fmt:'openai',base:'https://api.openai.com/v1',key:'',model:'',models:[],sys:DEF.sys};
+const SEL0={prov:0,model:''};
+let S={cfg:{...DEF},providers:[],cur:0,tr:{...SEL0},sm:{...SEL0},paras:[],groups:[],useArt:true};
+function norm(){
+  S.cfg={...DEF,...(S.cfg||{})};S.tr=S.tr||{...SEL0};S.sm=S.sm||{...SEL0};S.providers=S.providers||[];
+  if(!S.providers.length){const c=S.cfg;S.providers=[{...PDEF,id:Date.now(),fmt:c.fmt||PDEF.fmt,base:c.base||PDEF.base,key:c.key||'',model:c.model||'',sys:c.sys||DEF.sys}];S.cur=S.providers[0].id}
+  S.providers.forEach(p=>{if(p.sys==null)p.sys=S.cfg.sys||DEF.sys;p.models=p.models||[]});
+  if(!S.providers.some(p=>p.id===S.cur))S.cur=S.providers[0].id;
+}
+/* ---------- IndexedDB ---------- */
+let db=null,ready=false,dirty=false,ft;
+let BK=[],CH=[],curCh=null,sel=new Set(),V={view:'shelf',book:null};
+const uid=p=>p+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const idb=()=>new Promise((res,rej)=>{const r=indexedDB.open('reading-workbench',1);
+  r.onupgradeneeded=()=>{const d=r.result;d.createObjectStore('settings',{keyPath:'k'});d.createObjectStore('books',{keyPath:'id'});d.createObjectStore('chapters',{keyPath:'id'}).createIndex('bookId','bookId')};
+  r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+const tx=(st,mode,fn)=>new Promise((res,rej)=>{const t=db.transaction(st,mode);let o;try{o=fn(t)}catch(e){return rej(e)}
+  t.oncomplete=()=>res(o&&'result' in o?o.result:undefined);t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error)});
+const dbGet=(st,k)=>tx([st],'readonly',t=>t.objectStore(st).get(k));
+const dbAll=st=>tx([st],'readonly',t=>t.objectStore(st).getAll());
+const dbPut=(st,o)=>tx([st],'readwrite',t=>t.objectStore(st).put(o));
+const dbByBook=id=>tx(['chapters'],'readonly',t=>t.objectStore('chapters').index('bookId').getAll(id));
+const dbCnt=id=>tx(['chapters'],'readonly',t=>t.objectStore('chapters').index('bookId').count(id));
+const settingsRec=()=>({k:'main',cfg:S.cfg,providers:S.providers,cur:S.cur,tr:S.tr,sm:S.sm,useArt:S.useArt});
+const syncCur=()=>{if(curCh){curCh.paras=S.paras;curCh.groups=S.groups}};
+async function flush(){
+  clearTimeout(ft);if(!ready||!dirty||!db)return;dirty=false;syncCur();
+  try{await tx(['settings','chapters'],'readwrite',t=>{t.objectStore('settings').put(settingsRec());if(curCh)t.objectStore('chapters').put(curCh)})}
+  catch(e){dirty=true;toast('保存失败：'+e.message)}
+}
+const save=()=>{dirty=true;clearTimeout(ft);ft=setTimeout(flush,300)};
+addEventListener('visibilitychange',()=>{if(document.hidden)flush()});addEventListener('pagehide',flush);
+
 let quotes=[],busy=false,pending=null,tt,back=null,jumpAt=0;
 function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(tt);tt=setTimeout(()=>t.style.display='none',3200)}
 
 /* ---------- API ---------- */
 async function llm(system,msgs,tr){
-  const c=tr?trCfg():cur();if(!c.key||!c.model)throw Error('请先在 ⚙ 里填写 API Key 和模型名');
+  const c=tr==='sm'?smCfg():tr?trCfg():cur();if(!c.key||!c.model)throw Error('请先在 ⚙ 里填写 API Key 和模型名');
   const base=c.base.replace(/\/+$/,'');let url,h={'Content-Type':'application/json'},b;
   if(c.fmt==='anthropic'){url=base+'/v1/messages';h['x-api-key']=c.key;h['anthropic-version']='2023-06-01';h['anthropic-dangerous-direct-browser-access']='true';b={model:c.model,max_tokens:4096,system,messages:msgs}}
   else{url=base+'/chat/completions';h.Authorization='Bearer '+c.key;b={model:c.model,messages:[{role:'system',content:system},...msgs]}}
@@ -243,7 +303,17 @@ function renderChips(){
 /* ---------- groups ---------- */
 const fmtQuote=q=>`【引用·第${q.i+1}段】`+(q.en?`\nEN: ${q.en}`:'')+(q.zh?`\nZH: ${q.zh}`:'');
 const fmtGroup=g=>(g.quotes.length?g.quotes.map(fmtQuote).join('\n\n')+'\n\n':'')+'问题：'+g.q;
-const sysPrompt=()=>S.cfg.sys+(S.useArt&&S.paras.length?'\n\n【文章全文】\n'+S.paras.map(p=>p.en).join('\n\n'):'');
+const sumList=()=>curCh?CH.filter(c=>c.idx<curCh.idx&&c.summary&&c.summary.trim()).sort((a,b)=>a.idx-b.idx):[];
+const fullText=()=>S.paras.map(p=>p.en).join('\n\n');
+const sysPrompt=()=>{
+  let t=cur().sys;
+  const ss=sumList().filter(c=>c.sumOn!==false);
+  if(ss.length)t+='\n\n【前文章节摘要】\n'+ss.map(c=>`（${c.title}）\n${c.summary.trim()}`).join('\n\n');
+  if(curCh&&curCh.fullOn!==false&&S.paras.length)t+='\n\n【本章全文】\n'+fullText();
+  return t;
+};
+const tok=t=>{t=String(t);let c=0;for(const ch of t)if(ch>='\u4e00'&&ch<='\u9fff')c++;return Math.ceil(c*1.3+(t.length-c)/4)};
+const persistCh=c=>{syncCur();return dbPut('chapters',c)};
 function queueMsgs(){const m=[];S.groups.filter(g=>g.on&&g.a).forEach(g=>m.push({role:'user',content:fmtGroup(g)},{role:'assistant',content:g.a}));return m}
 function renderCards(){
   $('#cards').innerHTML=S.groups.length?S.groups.map((g,n)=>`<div class="card ${g.on?'on':''}" data-id="${g.id}">
@@ -251,11 +321,10 @@ function renderCards(){
     ${g.quotes.map(q=>`<div class="quote"><b>第${q.i+1}段</b>\n${esc([q.en&&'EN: '+q.en,q.zh&&'ZH: '+q.zh].filter(Boolean).join('\n'))}</div>`).join('')}
     <div class="qq">${esc(g.q)}</div><div class="aa">${md(g.a)}</div><div class="cf"><button class="del" data-del>删除卡片</button><span class="sp"></span><label><input type="checkbox" data-on ${g.on?'checked':''}> 入队</label></div></div>`).join(''):'<div class="empty">选中文章里的一段，点「引用选中」，再提问</div>';
 }
+function updSumBtn(){$('#bSum').textContent=curCh&&curCh.summary?'摘要 ✓':'摘要'}
 function renderInfo(){
-  const on=S.groups.filter(g=>g.on).length;
-  const chars=sysPrompt().length+queueMsgs().reduce((a,m)=>a+m.content.length,0);
-  $('#qinfo').textContent=`已入队 ${on}/${S.groups.length} 组 · 约 ${Math.ceil(chars/2.5)} tokens`;
-  $('#useArt').checked=S.useArt;
+  const n=tok(sysPrompt())+queueMsgs().reduce((a,m)=>a+tok(m.content),0);
+  $('#dqInfo').textContent='约 '+n+' tokens';updSumBtn();
 }
 function renderAll(){renderCards();renderQueue();renderInfo();renderChips();markQuoted()}
 
@@ -309,70 +378,271 @@ document.addEventListener('change',e=>{
   const card=e.target.closest&&e.target.closest('.card');
   if(card&&e.target.dataset.on!==undefined){S.groups.find(x=>x.id==card.dataset.id).on=e.target.checked;save();renderAll()}
 });
-$('#useArt').onchange=e=>{S.useArt=e.target.checked;save();renderInfo()};
 $('#showZh').onchange=e=>$('#reader').classList.toggle('showzh',e.target.checked);
-$('#bAll').onclick=()=>{S.groups.forEach(g=>g.on=true);save();renderAll()};
-$('#bNone').onclick=()=>{S.groups.forEach(g=>g.on=false);save();renderAll()};
-$('#bLast').onclick=()=>{S.groups.forEach((g,i)=>g.on=i>=S.groups.length-3);save();renderAll()};
 $('#bLoad').onclick=loadArticle;
-$('#bNew').onclick=()=>{if(!S.paras.length||confirm('清空当前文章和所有问答？建议先导出。')){S.paras=[];S.groups=[];quotes=[];$('#paste').value='';save();renderReader();renderAll()}};
 $('#bTrAll').onclick=trAll;
 $('#bSend').onclick=send;
 $('#ask').addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey))send()});
+/* ---------- shelf / book / navigation ---------- */
+function setView(v){
+  V.view=v;
+  $('#vShelf').hidden=v!=='shelf';$('#vBook').hidden=v!=='book';$('#vRead').hidden=v!=='read';
+  $('footer').hidden=v!=='read';document.body.classList.toggle('nf',v!=='read');
+  $('#bBack').hidden=v==='shelf';
+  $('#hT').textContent=v==='shelf'?'阅读工作台':v==='book'?V.book.title:(curCh?curCh.title:'');
+  if(v!=='read'){$('#fab').style.display='none';$('#fabBack').style.display='none';back=null}
+  scrollTo(0,0);
+}
+function renderShelf(){
+  $('#shelf').innerHTML=BK.length?BK.map(b=>`<div class="li" data-bid="${b.id}"><div class="lt" data-openb><b>${esc(b.title)}</b><div class="meta" data-cnt>…</div></div><button data-renb>✎</button><button class="del" data-delb>删除</button></div>`).join(''):'<div class="empty">还没有书。新建文件夹，或导入已导出的书</div>';
+  BK.forEach(b=>dbCnt(b.id).then(n=>{const e=document.querySelector(`#shelf [data-bid="${b.id}"] [data-cnt]`);if(e)e.textContent=n+' 章'}).catch(()=>{}));
+}
+function renderBook(){
+  sel=new Set([...sel].filter(id=>CH.some(c=>c.id===id)));
+  $('#chlist').innerHTML=CH.length?CH.map(c=>`<div class="li" data-cid="${c.id}"><input type="checkbox" data-sel ${sel.has(c.id)?'checked':''}><div class="lt" data-openc><b>${esc(c.title)}</b><div class="meta">${c.paras.length} 段 · ${c.groups.length} 组问答${c.summary?' · 已摘要':''}</div></div><button data-renc>✎</button></div>`).join(''):'<div class="empty">还没有章节，点「新文章」</div>';
+  $('#selInfo').textContent=sel.size?`已选 ${sel.size}`:'';
+  $('#bDelSel').disabled=!sel.size;$('#bSelAll').textContent=CH.length&&sel.size===CH.length?'取消全选':'全选';
+}
+async function openBook(id){
+  const b=BK.find(x=>x.id===id);if(!b)return;
+  try{CH=(await dbByBook(id)).sort((x,y)=>x.idx-y.idx)}catch(e){return toast(e.message)}
+  V.book=b;sel.clear();curCh=null;renderBook();setView('book');
+}
+function openCh(id){
+  const c=CH.find(x=>x.id===id);if(!c)return;
+  curCh=c;S.paras=c.paras;S.groups=c.groups;quotes=[];back=null;$('#paste').value='';
+  renderReader();renderAll();setView('read');
+}
+async function leaveRead(){syncCur();dirty=true;await flush();curCh=null;S.paras=[];S.groups=[];quotes=[];renderBook();setView('book')}
+$('#bBack').onclick=()=>{
+  if(V.view==='read')leaveRead();
+  else if(V.view==='book'){CH=[];V.book=null;renderShelf();setView('shelf')}
+};
+async function newBook(){
+  const t=(prompt('书名（文件夹名）')||'').trim();if(!t)return;
+  const b={id:uid('b'),title:t,created:Date.now()};
+  try{await dbPut('books',b)}catch(e){return toast(e.message)}
+  BK.push(b);renderShelf();openBook(b.id);
+}
+async function renameBook(b){
+  const t=(prompt('书名',b.title)||'').trim();if(!t)return;
+  b.title=t;await dbPut('books',b);if(V.view==='book')$('#hT').textContent=t;renderShelf();
+}
+async function newCh(){
+  const idx=CH.reduce((m,c)=>Math.max(m,c.idx),0)+1;
+  const c={id:uid('c'),bookId:V.book.id,idx,title:'新文章 '+idx,paras:[],groups:[],summary:''};
+  try{await dbPut('chapters',c)}catch(e){return toast(e.message)}
+  CH.push(c);openCh(c.id);
+}
+$('#bNewBook').onclick=newBook;$('#bNewCh').onclick=newCh;$('#bRenBook').onclick=()=>renameBook(V.book);
+$('#hT').onclick=()=>{
+  if(V.view==='read'&&curCh){const t=(prompt('章节名',curCh.title)||'').trim();if(t){curCh.title=t;save();$('#hT').textContent=t}}
+  else if(V.view==='book')renameBook(V.book);
+};
+$('#bClr').onclick=()=>{if(!confirm('清空本章的文章和问答，重新粘贴？建议先导出。'))return;S.paras=[];S.groups=[];quotes=[];$('#paste').value='';save();renderReader();renderAll()};
+$('#bSelAll').onclick=()=>{if(sel.size===CH.length)sel.clear();else CH.forEach(c=>sel.add(c.id));renderBook()};
+$('#bDelSel').onclick=async()=>{
+  if(!sel.size||!confirm(`删除所选 ${sel.size} 章？不可恢复，建议先导出。`))return;
+  const ids=[...sel];
+  try{await tx(['chapters'],'readwrite',t=>ids.forEach(i=>t.objectStore('chapters').delete(i)))}catch(e){return toast(e.message)}
+  CH=CH.filter(c=>!sel.has(c.id));sel.clear();renderBook();
+};
+document.addEventListener('change',e=>{
+  if(e.target.dataset.sel===undefined)return;
+  const id=e.target.closest('.li').dataset.cid;e.target.checked?sel.add(id):sel.delete(id);renderBook();
+});
+document.addEventListener('click',async e=>{
+  const t=e.target,li=t.closest&&t.closest('.li');if(!li)return;
+  if(li.dataset.bid){
+    const b=BK.find(x=>x.id===li.dataset.bid);if(!b)return;
+    if(t.closest('[data-delb]')){
+      if(!confirm(`删除「${b.title}」及其所有章节？不可恢复，建议先导出。`))return;
+      try{await tx(['books','chapters'],'readwrite',tr=>{tr.objectStore('books').delete(b.id);const st=tr.objectStore('chapters');
+        const r=st.index('bookId').openKeyCursor(IDBKeyRange.only(b.id));r.onsuccess=()=>{const c=r.result;if(c){st.delete(c.primaryKey);c.continue()}}})}catch(x){return toast(x.message)}
+      BK=BK.filter(x=>x!==b);renderShelf();
+    }else if(t.closest('[data-renb]'))renameBook(b);
+    else if(t.closest('[data-openb]'))openBook(b.id);
+  }else if(li.dataset.cid){
+    const c=CH.find(x=>x.id===li.dataset.cid);if(!c)return;
+    if(t.closest('[data-renc]')){const n=(prompt('章节名',c.title)||'').trim();if(n){c.title=n;await dbPut('chapters',c);renderBook()}}
+    else if(t.closest('[data-openc]'))openCh(c.id);
+  }
+});
+/* ---------- export / import（整本书） ---------- */
+const dl=(name,data)=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,1)],{type:'application/json'}));a.download=name+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000)};
 $('#bExp').onclick=()=>{
-  if(!S.paras.length)return toast('还没有内容可导出');
-  const def='reading-'+new Date().toISOString().slice(0,10);
+  const b=V.book;if(!CH.length)return toast('这本书还没有章节');
+  const def=b.title.replace(/[\\/:*?"<>|]/g,'_')+'-'+new Date().toISOString().slice(0,10);
   let n=prompt('导出文件名（不用加 .json）',def);if(n===null)return;
   n=n.trim().replace(/\.json$/i,'').replace(/[\\/:*?"<>|]/g,'_')||def;
-  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({paras:S.paras,groups:S.groups},null,1)],{type:'application/json'}));
-  a.download=n+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+  dl(n,{format:'rw-book',v:2,title:b.title,chapters:CH.map(c=>({title:c.title,paras:c.paras,groups:c.groups,summary:c.summary||''}))});
 };
 $('#bImp').onclick=()=>$('#impFile').click();
+const cleanP=p=>({en:String(p.en||''),zh:String(p.zh||'')});
+const cleanG=(g,k)=>({id:g.id||Date.now()+k,quotes:(g.quotes||[]).map(q=>({i:+q.i||0,en:q.en||'',zh:q.zh||'',busy:false})),q:String(g.q||''),a:String(g.a||''),on:!!g.on});
 $('#impFile').onchange=async e=>{
   const f=e.target.files[0];e.target.value='';if(!f)return;
   try{
-    const d=JSON.parse(await f.text());
-    if(!Array.isArray(d.paras)||!d.paras.length)throw Error('文件格式不对：找不到文章段落');
-    if(S.paras.length&&!confirm('导入会替换当前文章和所有问答（建议先导出）。继续？'))return;
-    S.paras=d.paras.map(p=>({en:String(p.en||''),zh:String(p.zh||'')}));
-    S.groups=(Array.isArray(d.groups)?d.groups:[]).map((g,k)=>({id:g.id||Date.now()+k,quotes:(g.quotes||[]).map(q=>({i:+q.i||0,en:q.en||'',zh:q.zh||'',busy:false})),q:String(g.q||''),a:String(g.a||''),on:!!g.on}));
-    quotes=[];back=null;$('#fabBack').style.display='none';save();renderReader();renderAll();toast(`已导入：${S.paras.length} 段，${S.groups.length} 组问答`);
+    const d=JSON.parse(await f.text());let title,chs;
+    if(Array.isArray(d.chapters)){title=d.title;chs=d.chapters}
+    else if(Array.isArray(d.paras)){title=null;chs=[{title:'第1章',paras:d.paras,groups:d.groups}]}
+    else throw Error('文件格式不对：找不到书或文章段落');
+    if(!chs.length)throw Error('文件格式不对：没有章节');
+    title=String(title||f.name.replace(/\.json$/i,'')||'导入的书');
+    const b={id:uid('b'),title,created:Date.now()};
+    const recs=chs.map((c,k)=>({id:uid('c')+k,bookId:b.id,idx:k+1,title:String(c.title||'第'+(k+1)+'章'),paras:(c.paras||[]).map(cleanP),groups:(Array.isArray(c.groups)?c.groups:[]).map(cleanG),summary:String(c.summary||'')}));
+    await tx(['books','chapters'],'readwrite',t=>{t.objectStore('books').put(b);recs.forEach(r=>t.objectStore('chapters').put(r))});
+    BK.push(b);renderShelf();toast(`已导入「${title}」：${recs.length} 章`);
   }catch(err){toast(err.message.startsWith('文件')?err.message:'导入失败：'+err.message)}
 };
-/* queue panel */
-const firstSent=a=>{const t=String(a).replace(/[*`#>]/g,'').split('\n').map(x=>x.trim()).find(Boolean)||'';const m=t.match(/^.*?[。！？!?]|^.*?\.(?=\s|$)/);return (m?m[0]:t).slice(0,120)};
-function renderQueue(){
-  const L=$('#qlist'),st=L.scrollTop,all=S.groups.length&&S.groups.every(g=>g.on);
-  $('#dqInfo').textContent=`已入队 ${S.groups.filter(g=>g.on).length}/${S.groups.length}`;
-  $('#dqAll').textContent=all?'取消全选':'全选';$('#dqAll').disabled=!S.groups.length;
-  L.innerHTML=S.groups.length?S.groups.map((g,n)=>`<div class="qi ${g.on?'on':''}" data-id="${g.id}"><input type="checkbox" data-qon ${g.on?'checked':''}><div class="qt" data-go><b>第${n+1}组</b> ${esc(firstSent(g.a)||g.q)}</div></div>`).join(''):'<div class="empty">还没有问答</div>';
-  L.scrollTop=st;
+/* ---------- EPUB 导入 ---------- */
+async function unzip(buf){
+  const dv=new DataView(buf),u8=new Uint8Array(buf),dec=new TextDecoder();
+  let e=-1;for(let i=buf.byteLength-22;i>=Math.max(0,buf.byteLength-65557);i--){if(dv.getUint32(i,true)===0x06054b50){e=i;break}}
+  if(e<0)throw Error('文件格式不对：不是有效的 EPUB（zip）文件');
+  const n=dv.getUint16(e+10,true);let p=dv.getUint32(e+16,true);const files={},low={};
+  for(let k=0;k<n;k++){
+    if(dv.getUint32(p,true)!==0x02014b50)break;
+    const method=dv.getUint16(p+10,true),csize=dv.getUint32(p+20,true),nl=dv.getUint16(p+28,true),el=dv.getUint16(p+30,true),cl=dv.getUint16(p+32,true),off=dv.getUint32(p+42,true);
+    const name=dec.decode(u8.subarray(p+46,p+46+nl));p+=46+nl+el+cl;
+    if(!name.endsWith('/')){files[name]={method,csize,off};low[name.toLowerCase()]=name}
+  }
+  const read=async name=>{
+    const f=files[name]||files[low[name.toLowerCase()]];if(!f)throw Error('文件格式不对：EPUB 里找不到 '+name);
+    const s0=f.off+30+dv.getUint16(f.off+26,true)+dv.getUint16(f.off+28,true),data=u8.subarray(s0,s0+f.csize);
+    if(f.method===0)return data;
+    if(f.method!==8)throw Error('文件格式不对：不支持的压缩方式');
+    return new Uint8Array(await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+  };
+  return {read,text:async n=>new TextDecoder().decode(await read(n))};
 }
-$('#bQ').onclick=()=>{renderQueue();$('#dq').showModal()};
+const parseDoc=(t,type)=>{let d=new DOMParser().parseFromString(t,type);if(d.getElementsByTagName('parsererror').length&&type!=='text/html')d=new DOMParser().parseFromString(t,'text/html');return d};
+const dirOf=p=>p.includes('/')?p.slice(0,p.lastIndexOf('/')+1):'';
+function resolvePath(base,href){
+  let h=String(href).split('#')[0];try{h=decodeURIComponent(h)}catch(e){}
+  const o=[];for(const x of (h.startsWith('/')?h:dirOf(base)+h).split('/')){if(x==='..')o.pop();else if(x&&x!=='.')o.push(x)}
+  return o.join('/');
+}
+const clean=t=>String(t||'').replace(/\s+/g,' ').trim();
+async function importEpub(f){
+  toast('正在解析 EPUB…');
+  const z=await unzip(await f.arrayBuffer());
+  const cont=parseDoc(await z.text('META-INF/container.xml'),'application/xml');
+  const rf=cont.getElementsByTagName('rootfile')[0];if(!rf)throw Error('文件格式不对：找不到 EPUB 的目录文件');
+  const opfPath=rf.getAttribute('full-path'),opf=parseDoc(await z.text(opfPath),'application/xml');
+  const man={};[...opf.getElementsByTagName('item')].forEach(it=>man[it.getAttribute('id')]={href:resolvePath(opfPath,it.getAttribute('href')||''),type:it.getAttribute('media-type')||'',prop:it.getAttribute('properties')||''});
+  const spine=[...opf.getElementsByTagName('itemref')].map(r=>man[r.getAttribute('idref')]).filter(m=>m&&/html/.test(m.type));
+  if(!spine.length)throw Error('文件格式不对：EPUB 里没有可读的章节');
+  /* 章节标题：优先目录（nav / NCX） */
+  const tt={},setT=(path,t)=>{t=clean(t);if(t&&!tt[path])tt[path]=t};
+  const navIt=Object.values(man).find(m=>m.prop.split(/\s+/).includes('nav'));
+  if(navIt)try{const d=parseDoc(await z.text(navIt.href),'application/xhtml+xml'),ns=[...d.getElementsByTagName('nav')],n=ns.find(x=>(x.getAttribute('epub:type')||'').includes('toc'))||ns[0];
+    if(n)[...n.getElementsByTagName('a')].forEach(a=>setT(resolvePath(navIt.href,a.getAttribute('href')||''),a.textContent))}catch(e){}
+  const ncxIt=Object.values(man).find(m=>/ncx/.test(m.type));
+  if(ncxIt)try{const d=parseDoc(await z.text(ncxIt.href),'application/xml');
+    [...d.getElementsByTagName('navPoint')].forEach(np=>{const l=np.getElementsByTagName('navLabel')[0],c=np.getElementsByTagName('content')[0];
+      if(l&&c)setT(resolvePath(ncxIt.href,c.getAttribute('src')||''),(l.getElementsByTagName('text')[0]||l).textContent)})}catch(e){}
+  /* 切章节：一个 spine 文件 = 一章 */
+  const SEL='p,h1,h2,h3,h4,h5,h6,li,blockquote,pre,dt,dd,figcaption,div,tr',recs=[];let k=0;
+  const bid=uid('b');
+  for(const m of spine){
+    let doc;try{doc=parseDoc(await z.text(m.href),'application/xhtml+xml')}catch(e){continue}
+    const body=doc.getElementsByTagName('body')[0]||doc.documentElement;
+    body.querySelectorAll('script,style').forEach(x=>x.remove());
+    let ps=[...body.querySelectorAll(SEL)].filter(e=>!e.querySelector(SEL)).map(e=>clean(e.textContent)).filter(Boolean);
+    if(!ps.length)ps=String(body.textContent||'').split(/\n\s*\n/).map(clean).filter(Boolean);
+    const h=body.querySelector('h1,h2,h3'),dt=doc.getElementsByTagName('title')[0];
+    const title=(tt[m.href]||clean(h&&h.textContent)||clean(dt&&dt.textContent)||m.href.split('/').pop()).slice(0,80);
+    k++;recs.push({id:uid('c')+k,bookId:bid,idx:k,title,paras:ps.map(en=>({en,zh:''})),groups:[],summary:''});
+  }
+  const dcT=opf.getElementsByTagNameNS('http://purl.org/dc/elements/1.1/','title')[0];
+  const title=clean(dcT&&dcT.textContent)||f.name.replace(/\.epub$/i,'')||'EPUB';
+  const b={id:bid,title,created:Date.now()};
+  await tx(['books','chapters'],'readwrite',t=>{t.objectStore('books').put(b);recs.forEach(r=>t.objectStore('chapters').put(r))});
+  BK.push(b);renderShelf();toast(`已导入「${title}」：${recs.length} 章`);openBook(b.id);
+}
+$('#bEpub').onclick=()=>$('#epubFile').click();
+$('#epubFile').onchange=async e=>{
+  const f=e.target.files[0];e.target.value='';if(!f)return;
+  try{await importEpub(f)}catch(err){toast(err.message.startsWith('文件')?err.message:'EPUB 导入失败：'+err.message)}
+};
+/* queue panel：摘要 → 全文 → 卡片 */
+const firstSent=a=>{const t=String(a).replace(/[*`#>|]/g,'').split('\n').map(x=>x.trim()).find(Boolean)||'';const m=t.match(/^.*?[。！？!?]|^.*?\.(?=\s|$)/);return (m?m[0]:t).slice(0,120)};
+function renderQueue(){
+  const L=$('#qlist'),st=L.scrollTop,ss=sumList(),R=[];
+  if(curCh){const miss=CH.filter(c=>c.idx<curCh.idx&&!(c.summary&&c.summary.trim())).length;if(miss)R.push(`<div class="meta" style="padding:6px 0">前面还有 ${miss} 章没有摘要</div>`)}
+  ss.forEach((c,n)=>{const on=c.sumOn!==false;R.push(`<div class="qi ${on?'on':''}" data-id="${c.id}"><input type="checkbox" data-qs ${on?'checked':''}><div class="qt"><b>摘要${n+1}</b> ${esc(c.title)}：${esc(c.summary.trim())}</div><span class="tk">${tok(c.summary)}</span><button data-esb>✎</button></div>`)});
+  if(curCh){const on=curCh.fullOn!==false;R.push(`<div class="qi ${on?'on':''}" data-id="full"><input type="checkbox" data-qf ${on?'checked':''}><div class="qt"><b>全文</b> 本章 ${S.paras.length} 段</div><span class="tk">${tok(fullText())}</span></div>`)}
+  S.groups.forEach((g,n)=>R.push(`<div class="qi ${g.on?'on':''}" data-id="${g.id}"><input type="checkbox" data-qon ${g.on?'checked':''}><div class="qt" data-go><b>卡片${n+1}</b> ${esc(firstSent(g.a)||g.q)}</div><span class="tk">${tok(fmtGroup(g)+g.a)}</span></div>`));
+  const all=ss.every(c=>c.sumOn!==false)&&(!curCh||curCh.fullOn!==false)&&S.groups.every(g=>g.on);
+  $('#dqAll').textContent=ss.length+S.groups.length&&all?'取消全选':'全选';$('#dqAll').disabled=!(ss.length||S.groups.length||curCh);
+  L.innerHTML=R.length?R.join(''):'<div class="empty">队列是空的</div>';L.scrollTop=st;
+}
+$('#bQ').onclick=()=>{renderQueue();renderInfo();$('#dq').showModal()};
 $('#dqClose').onclick=()=>$('#dq').close();
-$('#dqAll').onclick=()=>{const v=!(S.groups.length&&S.groups.every(g=>g.on));S.groups.forEach(g=>g.on=v);save();renderAll()};
-document.addEventListener('change',e=>{if(e.target.dataset.qon===undefined)return;const g=S.groups.find(x=>x.id==e.target.closest('.qi').dataset.id);g.on=e.target.checked;save();renderAll()});
-document.addEventListener('click',e=>{const go=e.target.closest&&e.target.closest('[data-go]');if(!go)return;const id=go.closest('.qi').dataset.id;$('#dq').close();savePos();jumpTo(id)});
+$('#dqAll').onclick=()=>{
+  const ss=sumList();const v=!(ss.every(c=>c.sumOn!==false)&&(!curCh||curCh.fullOn!==false)&&S.groups.every(g=>g.on));
+  ss.forEach(c=>{if((c.sumOn!==false)!==v){c.sumOn=v;persistCh(c)}});if(curCh)curCh.fullOn=v;S.groups.forEach(g=>g.on=v);save();renderAll();
+};
+document.addEventListener('change',e=>{
+  const t=e.target,row=t.closest&&t.closest('.qi');if(!row)return;const id=row.dataset.id;
+  if(t.dataset.qs!==undefined){const c=CH.find(x=>x.id===id);c.sumOn=t.checked;persistCh(c)}
+  else if(t.dataset.qf!==undefined){curCh.fullOn=t.checked;save()}
+  else if(t.dataset.qon!==undefined){S.groups.find(x=>x.id==id).on=t.checked;save();renderAll();return}
+  else return;
+  renderQueue();renderInfo();
+});
+document.addEventListener('click',e=>{
+  const row=e.target.closest&&e.target.closest('.qi');if(!row)return;
+  if(e.target.closest('[data-esb]')){const c=CH.find(x=>x.id===row.dataset.id);$('#dq').close();if(c)openSum(c);return}
+  if(e.target.closest('[data-go]')){const id=row.dataset.id;$('#dq').close();savePos();jumpTo(id)}
+});
+/* summary */
+let dsC=null,sumBusy=false;
+function openSum(c){dsC=c;$('#dsT').textContent='摘要 · '+c.title;$('#dsText').value=c.summary||'';$('#dsum').showModal()}
+async function genSum(c){
+  syncCur();
+  if(!c.paras.length)return toast('这一章还没有内容');
+  if(sumBusy)return;sumBusy=true;const b=$('#dsGen');b.disabled=true;b.textContent='生成中…';
+  try{
+    const t=await llm(S.cfg.smSys||DEF.smSys,[{role:'user',content:`《${c.title}》\n\n`+c.paras.map(p=>p.en).join('\n\n')}],'sm');
+    c.summary=t.trim();await persistCh(c);
+    if(dsC===c&&$('#dsum').open)$('#dsText').value=c.summary;
+    renderInfo();renderQueue();toast('摘要已生成');
+  }catch(e){toast(e.message)}
+  sumBusy=false;b.disabled=false;b.textContent='生成';
+}
+$('#bSum').onclick=()=>{if(curCh)openSum(curCh)};
+$('#dsGen').onclick=()=>{if($('#dsText').value.trim()&&!confirm('覆盖现有摘要？'))return;genSum(dsC)};
+$('#dsDone').onclick=()=>$('#dsum').close();
+$('#dsum').addEventListener('close',async()=>{
+  const c=dsC;if(!c)return;const v=$('#dsText').value.trim();
+  if(v!==(c.summary||'')){c.summary=v;try{await persistCh(c)}catch(e){toast(e.message)}}
+  renderInfo();renderQueue();
+});
 function setTab(t){$('#paneApi').hidden=t!=='api';$('#panePref').hidden=t!=='pref';$('#tabApi').classList.toggle('act',t==='api');$('#tabPref').classList.toggle('act',t==='pref')}
 $('#tabApi').onclick=()=>setTab('api');$('#tabPref').onclick=()=>setTab('pref');
 /* settings */
 const cur=()=>S.providers.find(p=>p.id===S.cur)||S.providers[0];
-let D,dCur,DT={prov:0,model:''};
+let D,dCur,DT={prov:0,model:''},DS={prov:0,model:''};
+function smCfg(){const p=S.providers.find(x=>x.id===S.sm.prov)||cur();return {...p,model:S.sm.model||p.model}}
 function trCfg(){const p=S.providers.find(x=>x.id===S.tr.prov)||cur();return {...p,model:S.tr.model||p.model}}
-function fillT(){
-  if(DT.prov&&!D.some(x=>x.id===DT.prov))DT.prov=0;
-  $('#tProv').innerHTML='<option value="0">跟随当前服务商</option>'+D.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('');$('#tProv').value=DT.prov;
-  const p=D.find(x=>x.id===DT.prov)||dc();const l=[...p.models];if(DT.model&&!l.includes(DT.model))l.unshift(DT.model);
-  $('#tModel').innerHTML='<option value="">跟随该服务商所选模型</option>'+l.map(m=>`<option>${esc(m)}</option>`).join('')+'<option value="__m">手动输入…</option>';$('#tModel').value=DT.model}
-$('#tProv').onchange=e=>{DT.prov=+e.target.value;DT.model='';fillT()};
-$('#tModel').onchange=e=>{if(e.target.value==='__m'){const m=(prompt('输入模型名')||'').trim();if(m)DT.model=m}else DT.model=e.target.value;fillT()};
+function fillSel(pe,me,o){
+  if(o.prov&&!D.some(x=>x.id===o.prov))o.prov=0;
+  $(pe).innerHTML='<option value="0">跟随当前服务商</option>'+D.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('');$(pe).value=o.prov;
+  const p=D.find(x=>x.id===o.prov)||dc();const l=[...p.models];if(o.model&&!l.includes(o.model))l.unshift(o.model);
+  $(me).innerHTML='<option value="">跟随该服务商所选模型</option>'+l.map(m=>`<option>${esc(m)}</option>`).join('')+'<option value="__m">手动输入…</option>';$(me).value=o.model}
+const fillT=()=>{fillSel('#tProv','#tModel',DT);fillSel('#sProv','#sModel',DS)};
+[['#tProv','#tModel',()=>DT],['#sProv','#sModel',()=>DS]].forEach(([pe,me,g])=>{
+  $(pe).onchange=e=>{const o=g();o.prov=+e.target.value;o.model='';fillT()};
+  $(me).onchange=e=>{const o=g();if(e.target.value==='__m'){const m=(prompt('输入模型名')||'').trim();if(m)o.model=m}else o.model=e.target.value;fillT()}});
 const dc=()=>D.find(p=>p.id===dCur);
 const renderSet=()=>{$('#bSet').textContent='⚙ '+cur().name};
-function readF(){const p=dc();p.name=$('#fName').value.trim()||'未命名';p.fmt=$('#fFmt').value;p.base=$('#fBase').value.trim();p.key=$('#fKey').value.trim()}
+function readF(){const p=dc();p.name=$('#fName').value.trim()||'未命名';p.fmt=$('#fFmt').value;p.base=$('#fBase').value.trim();p.key=$('#fKey').value.trim();p.sys=$('#fSys').value.trim()||DEF.sys}
 function fillModels(){const p=dc();const l=[...p.models];if(p.model&&!l.includes(p.model))l.unshift(p.model);
   $('#fModel').innerHTML='<option value="">（未选择）</option>'+l.map(m=>`<option>${esc(m)}</option>`).join('')+'<option value="__m">手动输入…</option>';$('#fModel').value=p.model}
 function fillF(){const p=dc();$('#fProv').innerHTML=D.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('');$('#fProv').value=dCur;
-  $('#fName').value=p.name;$('#fFmt').value=p.fmt;$('#fBase').value=p.base;$('#fKey').value=p.key;fillModels();fillT()}
+  $('#fName').value=p.name;$('#fFmt').value=p.fmt;$('#fBase').value=p.base;$('#fKey').value=p.key;$('#fSys').value=p.sys;fillModels();fillT()}
 async function fetchModels(p){
   if(!p.key)throw Error('先填写 API Key');
   const base=p.base.replace(/\/+$/,'');let url,h;
@@ -383,7 +653,7 @@ async function fetchModels(p){
   if(!r.ok)throw Error((j.error&&(j.error.message||j.error))||('HTTP '+r.status));
   return [...new Set((j.data||j.models||[]).map(m=>typeof m==='string'?m:(m.id||m.name)).filter(Boolean))].sort();
 }
-$('#bSet').onclick=()=>{D=JSON.parse(JSON.stringify(S.providers));dCur=cur().id;DT={...S.tr};fillF();$('#fSys').value=S.cfg.sys;$('#fTr').value=S.cfg.trSys;$('#fAuto').checked=S.cfg.autoOn;$('#pZh').checked=S.cfg.showZh;$('#pEn').checked=S.cfg.qEn;$('#pQZh').checked=S.cfg.qZh;setTab('api');$('#dlg').showModal()};
+$('#bSet').onclick=()=>{D=JSON.parse(JSON.stringify(S.providers));dCur=cur().id;DT={...S.tr};DS={...S.sm};fillF();$('#fTr').value=S.cfg.trSys;$('#fSm').value=S.cfg.smSys;$('#fAuto').checked=S.cfg.autoOn;$('#pZh').checked=S.cfg.showZh;$('#pEn').checked=S.cfg.qEn;$('#pQZh').checked=S.cfg.qZh;setTab('api');$('#dlg').showModal()};
 $('#fProv').onchange=e=>{readF();dCur=+e.target.value;fillF()};
 $('#fAdd').onclick=()=>{readF();const p={...PDEF,models:[],id:Date.now(),name:'服务商'+(D.length+1)};D.push(p);dCur=p.id;fillF()};
 $('#fDel').onclick=()=>{if(D.length<2)return toast('至少保留一个服务商');if(!confirm('删除「'+dc().name+'」？'))return;D=D.filter(x=>x.id!==dCur);dCur=D[0].id;fillF()};
@@ -394,11 +664,40 @@ $('#fGet').onclick=async()=>{readF();const p=dc(),b=$('#fGet');b.disabled=true;b
   try{p.models=await fetchModels(p);fillModels();fillT();toast('获取到 '+p.models.length+' 个模型')}catch(e){toast(e.message)}
   b.disabled=false;b.textContent='获取模型'};
 $('#fCancel').onclick=()=>$('#dlg').close();
-$('#fSave').onclick=()=>{readF();S.providers=D;S.cur=dCur;S.tr=DT;S.cfg.sys=$('#fSys').value.trim()||DEF.sys;S.cfg.trSys=$('#fTr').value.trim()||DEF.trSys;S.cfg.autoOn=$('#fAuto').checked;S.cfg.showZh=$('#pZh').checked;S.cfg.qEn=$('#pEn').checked;S.cfg.qZh=$('#pQZh').checked;save();$('#dlg').close();renderSet();toast('已保存')};
+$('#fSave').onclick=()=>{readF();S.providers=D;S.cur=dCur;S.tr=DT;S.sm=DS;S.cfg.smSys=$('#fSm').value.trim()||DEF.smSys;S.cfg.trSys=$('#fTr').value.trim()||DEF.trSys;S.cfg.autoOn=$('#fAuto').checked;S.cfg.showZh=$('#pZh').checked;S.cfg.qEn=$('#pEn').checked;S.cfg.qZh=$('#pQZh').checked;save();$('#dlg').close();renderSet();toast('已保存')};
 
-renderSet();
-renderReader();renderAll();
-$('#showZh').checked=S.cfg.showZh;$('#reader').classList.toggle('showzh',S.cfg.showZh);$('#cEn').checked=S.cfg.qEn;$('#cZh').checked=S.cfg.qZh;
+async function init(){
+  let loadErr=false,legacy=null,hadCur=false;
+  try{db=await idb()}catch(e){db=null}
+  if(!db){toast('需要 IndexedDB，当前浏览器不可用');renderSet();renderReader();renderAll();renderShelf();return}
+  try{
+    const st=await dbGet('settings','main');let src=st;
+    const c0=await dbGet('chapters','current');
+    if(c0){hadCur=true;legacy=c0}
+    if(!st){try{const d=localStorage.getItem('rw1');if(d){src=JSON.parse(d);if(!legacy&&src.paras&&src.paras.length)legacy={paras:src.paras,groups:src.groups||[]}}}catch(e){}}
+    if(src){const {paras,groups,...rest}=src;S={...S,...rest,cfg:{...DEF,...(rest.cfg||{})}}}
+    BK=(await dbAll('books')).sort((a,b)=>a.created-b.created);
+  }catch(e){loadErr=true;toast('读取数据失败，已暂停保存：'+e.message)}
+  norm();
+  renderSet();renderReader();renderAll();
+  $('#showZh').checked=S.cfg.showZh;$('#reader').classList.toggle('showzh',S.cfg.showZh);$('#cEn').checked=S.cfg.qEn;$('#cZh').checked=S.cfg.qZh;
+  ready=!loadErr;
+  if(ready){
+    if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
+    try{
+      if(legacy&&legacy.paras&&legacy.paras.length){
+        const b={id:uid('b'),title:'旧文章',created:Date.now()};
+        const ch={id:uid('c'),bookId:b.id,idx:1,title:(legacy.paras[0].en||'').slice(0,24)||'文章 1',paras:legacy.paras,groups:legacy.groups||[],summary:''};
+        await tx(['books','chapters','settings'],'readwrite',t=>{t.objectStore('books').put(b);t.objectStore('chapters').put(ch);t.objectStore('chapters').delete('current');t.objectStore('settings').put(settingsRec())});
+        BK.push(b);toast('旧文章已放进「旧文章」文件夹');
+      }else{
+        await tx(['chapters','settings'],'readwrite',t=>{if(hadCur)t.objectStore('chapters').delete('current');t.objectStore('settings').put(settingsRec())});
+      }
+    }catch(e){toast('迁移失败：'+e.message)}
+  }
+  setView('shelf');renderShelf();
+}
+init();
 </script>
 </body>
 </html>
