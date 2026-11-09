@@ -72,6 +72,7 @@ button.del{color:var(--dg);border-color:var(--dg);background:transparent;font-si
 .meta{font-size:12.5px;color:var(--mute)}
 #hT{cursor:default}
 [hidden]{display:none!important}
+dialog,#qlist{overscroll-behavior:contain}
 body.nf{padding-bottom:0}
 .tk{font-size:11.5px;color:var(--mute);flex:none;min-width:34px;text-align:right;margin-top:2px}
 </style>
@@ -88,8 +89,8 @@ body.nf{padding-bottom:0}
   <div id="shelf"></div>
 </div>
 <div id="vBook" hidden>
-  <div class="bar"><button class="pri" id="bNewCh">新文章</button><button id="bExp">导出本书</button><button id="bRenBook">改书名</button></div>
-  <div class="bar"><button id="bSelAll">全选</button><button class="del" id="bDelSel">删除所选</button><span id="selInfo"></span></div>
+  <div class="bar"><button class="pri" id="bNewCh">新文章</button><button id="bExp">导出本书</button></div>
+  <div class="bar"><button id="bSelAll">全选</button><button id="bMove">移动所选</button><button class="del" id="bDelSel">删除所选</button><span id="selInfo"></span></div>
   <div id="chlist"></div>
 </div>
 <div id="vRead" hidden>
@@ -100,7 +101,7 @@ body.nf{padding-bottom:0}
   <section id="secRead" hidden>
     <div class="bar">
       <label><input type="checkbox" id="showZh"> 显示译文</label>
-      <button id="bTrAll">翻译全文</button><button id="bClr">重新载入</button>
+      <button id="bTrAll">翻译全文</button><button id="bClr">重新载入</button><button id="bEdit">编辑全文</button>
       <span id="trState"></span>
     </div>
     <div id="reader"></div>
@@ -127,6 +128,10 @@ body.nf{padding-bottom:0}
 <dialog id="dq"><div class="row" style="margin-top:0"><b>提示词队列</b><span id="dqInfo" style="color:var(--mute);font-size:13px"></span><span class="sp"></span><button id="dqAll"></button><button id="dqClose">关闭</button></div><div id="qlist"></div></dialog>
 <dialog id="dsum"><div class="row" style="margin-top:0"><b id="dsT">摘要</b><span class="sp"></span><button id="dsGen">生成</button><button class="pri" id="dsDone">完成</button></div>
 <textarea id="dsText" style="height:240px;margin-top:8px" placeholder="点「生成」，或直接手写、修改；关闭时自动保存"></textarea></dialog>
+
+<dialog id="dmv"><b>移动到文件夹</b><select id="mvTo" style="margin-top:10px"></select><div class="row"><span class="sp"></span><button id="mvCancel">取消</button><button class="pri" id="mvOk">移动</button></div></dialog>
+<dialog id="ded"><div class="row" style="margin-top:0"><b>编辑全文</b><span class="meta">空行 = 分段</span><span class="sp"></span><button id="edCancel">取消</button><button class="pri" id="edSave">保存</button></div>
+<textarea id="edText" style="height:min(60vh,420px);margin-top:8px"></textarea></dialog>
 
 <dialog id="dlg">
   <b>设置</b><div class="tabs"><button id="tabApi" class="act">API 设置</button><button id="tabPref">偏好设置</button></div><div id="paneApi">
@@ -401,7 +406,7 @@ function renderBook(){
   sel=new Set([...sel].filter(id=>CH.some(c=>c.id===id)));
   $('#chlist').innerHTML=CH.length?CH.map(c=>`<div class="li" data-cid="${c.id}"><input type="checkbox" data-sel ${sel.has(c.id)?'checked':''}><div class="lt" data-openc><b>${esc(c.title)}</b><div class="meta">${c.paras.length} 段 · ${c.groups.length} 组问答${c.summary?' · 已摘要':''}</div></div><button data-renc>✎</button></div>`).join(''):'<div class="empty">还没有章节，点「新文章」</div>';
   $('#selInfo').textContent=sel.size?`已选 ${sel.size}`:'';
-  $('#bDelSel').disabled=!sel.size;$('#bSelAll').textContent=CH.length&&sel.size===CH.length?'取消全选':'全选';
+  $('#bDelSel').disabled=!sel.size;$('#bMove').disabled=!sel.size;$('#bSelAll').textContent=CH.length&&sel.size===CH.length?'取消全选':'全选';
 }
 async function openBook(id){
   const b=BK.find(x=>x.id===id);if(!b)return;
@@ -434,7 +439,7 @@ async function newCh(){
   try{await dbPut('chapters',c)}catch(e){return toast(e.message)}
   CH.push(c);openCh(c.id);
 }
-$('#bNewBook').onclick=newBook;$('#bNewCh').onclick=newCh;$('#bRenBook').onclick=()=>renameBook(V.book);
+$('#bNewBook').onclick=newBook;$('#bNewCh').onclick=newCh;
 $('#hT').onclick=()=>{
   if(V.view==='read'&&curCh){const t=(prompt('章节名',curCh.title)||'').trim();if(t){curCh.title=t;save();$('#hT').textContent=t}}
   else if(V.view==='book')renameBook(V.book);
@@ -665,6 +670,61 @@ $('#fGet').onclick=async()=>{readF();const p=dc(),b=$('#fGet');b.disabled=true;b
   b.disabled=false;b.textContent='获取模型'};
 $('#fCancel').onclick=()=>$('#dlg').close();
 $('#fSave').onclick=()=>{readF();S.providers=D;S.cur=dCur;S.tr=DT;S.sm=DS;S.cfg.smSys=$('#fSm').value.trim()||DEF.smSys;S.cfg.trSys=$('#fTr').value.trim()||DEF.trSys;S.cfg.autoOn=$('#fAuto').checked;S.cfg.showZh=$('#pZh').checked;S.cfg.qEn=$('#pEn').checked;S.cfg.qZh=$('#pQZh').checked;save();$('#dlg').close();renderSet();toast('已保存')};
+
+/* 移动章节到其他文件夹 */
+$('#bMove').onclick=()=>{
+  const o=BK.filter(b=>b.id!==V.book.id);
+  if(!o.length)return toast('没有其他文件夹，先在书架新建一个');
+  $('#mvTo').innerHTML=o.map(b=>`<option value="${b.id}">${esc(b.title)}</option>`).join('');
+  $('#dmv').showModal();
+};
+$('#mvCancel').onclick=()=>$('#dmv').close();
+$('#mvOk').onclick=async()=>{
+  const tid=$('#mvTo').value,moving=CH.filter(c=>sel.has(c.id)).sort((a,b)=>a.idx-b.idx);
+  if(!tid||!moving.length)return;
+  try{
+    const base=(await dbByBook(tid)).reduce((m,c)=>Math.max(m,c.idx),0);
+    const recs=moving.map((c,k)=>({...c,bookId:tid,idx:base+k+1}));
+    await tx(['chapters'],'readwrite',t=>recs.forEach(r=>t.objectStore('chapters').put(r)));
+  }catch(e){return toast(e.message)}
+  const n=moving.length,tb=BK.find(b=>b.id===tid);
+  CH=CH.filter(c=>!sel.has(c.id));sel.clear();renderBook();$('#dmv').close();
+  toast(`已移动 ${n} 章到「${tb?tb.title:''}」`);
+};
+/* 编辑全文（重新分段） */
+$('#bEdit').onclick=()=>{$('#edText').value=S.paras.map(p=>p.en).join('\n\n');$('#ded').showModal()};
+$('#edCancel').onclick=()=>$('#ded').close();
+$('#edSave').onclick=()=>{
+  const np=$('#edText').value.split(/\n\s*\n/).map(s=>s.trim()).filter(Boolean);
+  if(!np.length)return toast('内容不能为空');
+  const old=S.paras;
+  if(np.length===old.length&&np.every((t,i)=>t===old[i].en)){$('#ded').close();return}
+  const pool=new Map();old.forEach(p=>{if(p.zh){if(!pool.has(p.en))pool.set(p.en,[]);pool.get(p.en).push(p.zh)}});
+  const paras=np.map(en=>{const a=pool.get(en);return {en,zh:(a&&a.shift())||''}});
+  const lost=old.filter(p=>p.zh).length-paras.filter(p=>p.zh).length;
+  if(lost>0&&!confirm(`有 ${lost} 段译文会因段落改动而丢失（未改动的段落保留译文）。继续？`))return;
+  const remap=q=>{
+    const o=old[q.i]&&old[q.i].en;let j=o?paras.findIndex(p=>p.en===o):-1;
+    if(j<0&&q.en){j=paras.findIndex(p=>p.en.includes(q.en));if(j<0){const k=q.en.slice(0,40);j=paras.findIndex(p=>p.en.includes(k))}}
+    q.i=j>=0?j:Math.min(q.i,paras.length-1);
+  };
+  S.groups.forEach(g=>g.quotes.forEach(remap));quotes.forEach(remap);
+  S.paras=paras;$('#ded').close();save();renderReader();renderAll();toast('已重新分段：'+paras.length+' 段');
+};
+/* 弹窗打开时锁定背景滚动 */
+const locked=new Map();let lockY=0;
+function lockBody(d){
+  if(!locked.size){lockY=scrollY;const b=document.body.style;b.position='fixed';b.top=-lockY+'px';b.left='0';b.right='0'}
+  locked.set(d,1);
+}
+function unlockBody(d){
+  if(!locked.delete(d)||locked.size)return;
+  const b=document.body.style;b.position=b.top=b.left=b.right='';scrollTo(0,lockY);
+}
+const _sm=HTMLDialogElement.prototype.showModal,_cl=HTMLDialogElement.prototype.close;
+HTMLDialogElement.prototype.showModal=function(){lockBody(this);_sm.call(this)};
+HTMLDialogElement.prototype.close=function(...a){_cl.apply(this,a);unlockBody(this)};
+document.querySelectorAll('dialog').forEach(d=>d.addEventListener('close',()=>unlockBody(d)));
 
 async function init(){
   let loadErr=false,legacy=null,hadCur=false;
