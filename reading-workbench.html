@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>阅读工作台</title>
 <style>
-:root{--bg:#f3f5f2;--card:#fff;--ink:#1d2b2a;--mute:#6b7a78;--line:#d9e0dd;--acc:#1f6f6b;--hl:#e4eda8;--on:#1f6f6b;--dg:#b3402f;color-scheme:light}
-@media(prefers-color-scheme:dark){:root{--bg:#141a19;--card:#1c2423;--ink:#e3eae8;--mute:#8fa09d;--line:#2d3836;--acc:#5cc0b9;--hl:#46502a;--on:#5cc0b9;--dg:#e8806f;color-scheme:dark}}
+:root{--bg:#f3f5f2;--card:#fff;--ink:#1d2b2a;--mute:#6b7a78;--line:#d9e0dd;--acc:#1f6f6b;--hl:#e4eda8;--on:#1f6f6b;--dg:#b3402f;--star:#d9a400;color-scheme:light}
+@media(prefers-color-scheme:dark){:root{--bg:#141a19;--card:#1c2423;--ink:#e3eae8;--mute:#8fa09d;--line:#2d3836;--acc:#5cc0b9;--hl:#46502a;--on:#5cc0b9;--dg:#e8806f;--star:#f0c040;color-scheme:dark}}
 *{box-sizing:border-box}
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font:15px/1.6 system-ui,-apple-system,"PingFang SC","Noto Sans SC",sans-serif;padding:0 0 210px}
@@ -22,12 +22,14 @@ textarea,input[type=text],input[type=password],select{width:100%;background:var(
 #paste{height:min(62vh,480px);resize:vertical}
 .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0;color:var(--mute);font-size:13px}
 .bar label{display:flex;gap:4px;align-items:center}
-#reader .p{position:relative;padding:6px 0 6px 12px;border-left:3px solid transparent;font-family:"Noto Serif SC","Songti SC",Georgia,serif;font-size:16.5px;line-height:1.75}
+#reader .p{position:relative;min-height:58px;padding:6px 0 6px 12px;border-left:3px solid transparent;font-family:"Noto Serif SC","Songti SC",Georgia,serif;font-size:var(--fs,16.5px);line-height:1.75}
 #reader .p.q{border-left-color:var(--acc)}
-#reader .zh{color:var(--mute);font-family:system-ui,"PingFang SC",sans-serif;font-size:14.5px;margin-top:2px;display:none}
+#reader .zh{color:var(--mute);font-family:system-ui,"PingFang SC",sans-serif;font-size:calc(var(--fs,16.5px)*.88);margin-top:2px;display:none}
 #reader.showzh .zh{display:block}
-.p .tr{position:absolute;right:0;top:4px;font-size:12px;padding:1px 6px;opacity:.55}
-.p .en,.p .zh{padding-right:34px}
+.p .tr{position:absolute;right:0;top:30px;font-size:12px;padding:1px 6px;opacity:.55}
+.p .en,.p .zh{padding-right:44px}
+.p .st{position:absolute;right:0;top:0;font-size:18px;line-height:1.3;padding:2px 6px;border:none;background:transparent;color:var(--mute);opacity:.7}
+.p.bm .st{color:var(--star);opacity:1}
 ::selection{background:var(--hl);color:var(--ink)}
 .card{background:var(--card);border:1px solid var(--line);border-left:5px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:12px}
 .card{scroll-margin-top:150px}
@@ -76,6 +78,8 @@ button.del{color:var(--dg);border-color:var(--dg);background:transparent;font-si
 dialog,#qlist{overscroll-behavior:contain}
 body.nf{padding-bottom:0}
 .tk{font-size:11.5px;color:var(--mute);flex:none;min-width:34px;text-align:right;margin-top:2px}
+#bSave.ok{border-color:var(--acc);color:var(--acc)}
+#bSave.warn{border-color:var(--dg);color:var(--dg)}
 </style>
 </head>
 <body>
@@ -118,7 +122,7 @@ body.nf{padding-bottom:0}
   <textarea id="ask" placeholder="针对引用的段落提问；没有引用也可以直接问"></textarea>
   <div class="row">
     <span class="sp"></span>
-    <button id="bQ">队列</button><button class="pri" id="bSend">发送</button>
+    <button id="bSave">保存</button><button id="bMark">书签</button><button id="bJump" disabled>跳转</button><button id="bQ">队列</button><button class="pri" id="bSend">发送</button>
   </div>
 </div></footer>
 <div id="toast"></div>
@@ -164,6 +168,12 @@ body.nf{padding-bottom:0}
   </div>
   <div id="panePref" hidden>
     <label style="display:flex;gap:6px;align-items:center;margin-top:12px"><input type="checkbox" id="pZh"> 打开时默认显示译文</label>
+    <label style="margin-top:16px">正文字号：<span id="pFsV"></span></label>
+    <div class="row" style="margin-top:0"><input type="range" id="pFs" min="13" max="26" step="0.5" style="flex:1;min-width:0"><button id="pFsR">默认</button></div>
+    <div id="fsSample" style="margin-top:6px;font-family:'Noto Serif SC','Songti SC',Georgia,serif;font-size:var(--fs,16.5px);line-height:1.75">The quick brown fox jumps over the lazy dog. 示例文字</div>
+    <label style="margin-top:16px">本地备份文件</label>
+    <div class="row" style="margin-top:0"><span id="fhName" class="meta" style="flex:1;min-width:0;word-break:break-all"></span><button id="fhChange">更换</button><button id="fhOff" class="del">取消关联</button></div>
+    <div class="row"><button id="fhDl">下载完整备份（所有书）</button></div>
   </div>
   <div class="row"><span class="sp"></span><button id="fCancel">取消</button><button class="pri" id="fSave">保存</button></div>
 </dialog>
@@ -183,7 +193,7 @@ const md=s=>{const L=String(s).split('\n');let o='',i=0;
     }else{const m=L[i].match(/^#{1,6}\s+(.*)$/);o+=(m?'<b>'+inl(m[1])+'</b>':inl(L[i]))+'\n';i++}
   }
   return o.replace(/\n$/,'')};
-const DEF={autoOn:false,showZh:false,smSys:'请用中文为这一章写简短摘要：列出主要人物、关键术语及其含义、主要情节或论点，便于阅读后续章节时参考。控制在300字以内。',trSys:'把用户给出的英文翻译成流畅、准确的中文，只输出译文。',sys:'你是阅读助手。用户在阅读一篇文章，会引用其中的片段提问。请结合全文与引用内容，用中文清晰、准确地回答。'};
+const DEF={autoOn:false,showZh:false,fs:16.5,smSys:'请用中文为这一章写简短摘要：列出主要人物、关键术语及其含义、主要情节或论点，便于阅读后续章节时参考。控制在300字以内。',trSys:'把用户给出的英文翻译成流畅、准确的中文，只输出译文。',sys:'你是阅读助手。用户在阅读一篇文章，会引用其中的片段提问。请结合全文与引用内容，用中文清晰、准确地回答。'};
 const PDEF={name:'默认',fmt:'openai',base:'https://api.openai.com/v1',key:'',model:'',models:[],sys:DEF.sys};
 const SEL0={prov:0,model:''};
 let S={cfg:{...DEF},providers:[],cur:0,tr:{...SEL0},sm:{...SEL0},paras:[],groups:[],useArt:true};
@@ -201,7 +211,7 @@ const idb=()=>new Promise((res,rej)=>{const r=indexedDB.open('reading-workbench'
   r.onupgradeneeded=()=>{const d=r.result;d.createObjectStore('settings',{keyPath:'k'});d.createObjectStore('books',{keyPath:'id'});d.createObjectStore('chapters',{keyPath:'id'}).createIndex('bookId','bookId')};
   r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
 const tx=(st,mode,fn)=>new Promise((res,rej)=>{const t=db.transaction(st,mode);let o;try{o=fn(t)}catch(e){return rej(e)}
-  t.oncomplete=()=>res(o&&'result' in o?o.result:undefined);t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error)});
+  t.oncomplete=()=>{if(mode==='readwrite')schedFile();res(o&&'result' in o?o.result:undefined)};t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error)});
 const dbGet=(st,k)=>tx([st],'readonly',t=>t.objectStore(st).get(k));
 const dbAll=st=>tx([st],'readonly',t=>t.objectStore(st).getAll());
 const dbPut=(st,o)=>tx([st],'readwrite',t=>t.objectStore(st).put(o));
@@ -215,7 +225,58 @@ async function flush(){
   catch(e){dirty=true;toast('保存失败：'+e.message)}
 }
 const save=()=>{dirty=true;clearTimeout(ft);ft=setTimeout(flush,300)};
-addEventListener('visibilitychange',()=>{if(document.hidden)flush()});addEventListener('pagehide',flush);
+addEventListener('visibilitychange',()=>{if(document.hidden){flush();schedFile(300)}});addEventListener('pagehide',flush);
+
+/* ---------- 本地备份文件（File System Access：桌面 Edge / Chrome） ---------- */
+let fh=null,fwT=0,fwAt=0,fwBusy=false,fwAgain=false,fsSt='';
+const FSA=!!window.showSaveFilePicker,FPERM={mode:'readwrite'},JT=[{description:'JSON',accept:{'application/json':['.json']}}];
+function setFS(st){fsSt=st;const b=$('#bSave');if(!b)return;
+  b.classList.toggle('ok',st==='ok');b.classList.toggle('warn',st==='perm'||st==='err');
+  b.title=st==='ok'?'已关联备份文件，改动会自动写入':st==='perm'?'需要重新授权：点一下「保存」':st==='err'?'上次写入失败':''}
+async function buildAll(){
+  const [bs,cs]=await Promise.all([dbAll('books'),dbAll('chapters')]);
+  bs.sort((a,b)=>a.created-b.created);
+  return {format:'rw-all',v:1,saved:new Date().toISOString(),books:bs.map(b=>({title:b.title,chapters:cs.filter(c=>c.bookId===b.id).sort((x,y)=>x.idx-y.idx).map(c=>({title:c.title,paras:c.paras,groups:c.groups,summary:c.summary||'',mark:c.mark||null}))}))};
+}
+function schedFile(ms=8000){
+  if(!fh)return;const at=Date.now()+ms;
+  if(fwT&&fwAt<=at)return;
+  clearTimeout(fwT);fwAt=at;fwT=setTimeout(()=>{fwT=0;fwAt=0;fileWrite()},ms);
+}
+async function fileWrite(manual){
+  if(!fh)return;
+  if(fwBusy){fwAgain=true;return}
+  fwBusy=true;
+  try{
+    if(await fh.queryPermission(FPERM)!=='granted'){setFS('perm');if(manual)toast('需要授权后才能写入');return}
+    await flush();
+    const data=await buildAll();
+    if(!data.books.some(b=>b.chapters.length)){if(manual)toast('书架是空的，没有写入（避免覆盖备份）');return}
+    const w=await fh.createWritable();
+    try{await w.write(JSON.stringify(data));await w.close()}catch(e){try{await w.abort()}catch(_){}throw e}
+    setFS('ok');if(manual)toast('已写入「'+fh.name+'」');
+  }catch(e){const was=fsSt;setFS('err');if(manual||was!=='err')toast('写入备份失败：'+e.message)}
+  finally{fwBusy=false;if(fwAgain){fwAgain=false;schedFile(2000)}}
+}
+async function pickFile(){
+  const h=await showSaveFilePicker({suggestedName:'阅读工作台备份.json',types:JT});
+  fh=h;await tx(['settings'],'readwrite',t=>t.objectStore('settings').put({k:'fh',h}));
+}
+async function loadFH(){
+  try{const r=await dbGet('settings','fh');if(r&&r.h){fh=r.h;setFS((await fh.queryPermission(FPERM))==='granted'?'ok':'perm')}}catch(e){}
+}
+async function exportAll(){
+  try{
+    await flush();const d=await buildAll();
+    if(!d.books.some(b=>b.chapters.length))return toast('书架是空的');
+    dl('阅读工作台-全部-'+new Date().toISOString().slice(0,10),d);toast('已生成完整备份');
+  }catch(e){toast('导出失败：'+e.message)}
+}
+function updFh(){
+  $('#fhName').textContent=!FSA?'当前浏览器不支持自动写入（请用桌面版 Edge / Chrome）':fh?fh.name:'未选择（点底部「保存」选择文件）';
+  $('#fhOff').hidden=!fh;$('#fhChange').disabled=!FSA;
+}
+
 
 let quotes=[],busy=false,pending=null,tt,back=null,jumpAt=0;
 function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(tt);tt=setTimeout(()=>t.style.display='none',3200)}
@@ -234,8 +295,9 @@ async function llm(system,msgs,tr){
 const trText=t=>llm(S.cfg.trSys||DEF.trSys,[{role:'user',content:t}],true);
 
 /* ---------- reader ---------- */
-const paraHtml=i=>{const p=S.paras[i];
-  return `<div class="p" data-i="${i}"><div class="en" data-l="en">${esc(p.en)}</div>${p.zh?`<div class="zh" data-l="zh">${esc(p.zh)}</div>`:''}<button class="tr" data-tr="${i}">${p.zh?'重译':'译'}</button></div>`};
+const isBm=i=>!!(curCh&&curCh.mark&&curCh.mark.i===i);
+const paraHtml=i=>{const p=S.paras[i],bm=isBm(i);
+  return `<div class="p${bm?' bm':''}" data-i="${i}"><div class="en" data-l="en">${esc(p.en)}</div>${p.zh?`<div class="zh" data-l="zh">${esc(p.zh)}</div>`:''}<button class="tr" data-tr="${i}">${p.zh?'重译':'译'}</button><button class="st" data-st="${i}" aria-label="书签">${bm?'★':'☆'}</button></div>`};
 function renderReader(){
   $('#reader').innerHTML=S.paras.map((_,i)=>paraHtml(i)).join('');
   markQuoted();
@@ -248,11 +310,19 @@ function markQuoted(){
   quotes.forEach(q=>used.add(q.i));
   document.querySelectorAll('#reader .p').forEach(el=>el.classList.toggle('q',used.has(+el.dataset.i)));
 }
+function updBm(){$('#bJump').disabled=!(curCh&&curCh.mark)}
+function markBm(){document.querySelectorAll('#reader .p').forEach(el=>{const on=isBm(+el.dataset.i);el.classList.toggle('bm',on);const b=el.querySelector('.st');if(b)b.textContent=on?'★':'☆'});updBm()}
+function setMark(i){
+  if(!curCh||!S.paras[i])return;
+  if(curCh.mark&&curCh.mark.i===i){curCh.mark=null;toast('已取消书签')}
+  else{curCh.mark={i,en:S.paras[i].en.slice(0,40)};toast('书签：第 '+(i+1)+' / '+S.paras.length+' 段')}
+  save();markBm();
+}
 function loadArticle(){
   const t=$('#paste').value.trim();if(!t)return toast('先粘贴文章');
   let ps=t.split(/\n\s*\n/).map(s=>s.trim()).filter(Boolean);
   if(ps.length<2)ps=t.split(/\n/).map(s=>s.trim()).filter(Boolean);
-  S.paras=ps.map(en=>({en,zh:''}));S.groups=[];quotes=[];save();renderReader();renderAll();
+  S.paras=ps.map(en=>({en,zh:''}));S.groups=[];quotes=[];if(curCh)curCh.mark=null;save();renderReader();renderAll();
 }
 async function trOne(i){
   const zh=await trText(S.paras[i].en);S.paras[i].zh=zh;save();
@@ -342,7 +412,7 @@ function renderInfo(){
   const b=build(draft()),n=tok(b.sys)+b.msgs.reduce((a,m)=>a+tok(m.content),0);
   $('#dqInfo').textContent='约 '+n+' tokens';updSumBtn();
 }
-function renderAll(){renderCards();renderQueue();renderInfo();renderChips();markQuoted()}
+function renderAll(){renderCards();renderQueue();renderInfo();renderChips();markQuoted();updBm()}
 
 async function send(){
   const q=$('#ask').value.trim();if(!q||busy)return;
@@ -377,7 +447,7 @@ $('#fabBack').onclick=()=>{
   back=null;$('#fabBack').style.display='none';
 };
 addEventListener('scroll',()=>{
-  if(back&&Date.now()-jumpAt>2000&&$('#secRead').getBoundingClientRect().bottom>innerHeight*0.6){back=null;$('#fabBack').style.display='none'}
+  if(back&&!back.keep&&Date.now()-jumpAt>2000&&$('#secRead').getBoundingClientRect().bottom>innerHeight*0.6){back=null;$('#fabBack').style.display='none'}
 },{passive:true});
 
 /* ---------- events ---------- */
@@ -385,6 +455,7 @@ document.addEventListener('click',e=>{
   const t=e.target;
   if(t.dataset.tr!==undefined){const b=t;b.disabled=true;trOne(+t.dataset.tr).catch(x=>{toast(x.message);b.disabled=false});$('#showZh').checked=true;$('#reader').classList.add('showzh')}
   if(t.dataset.rq!==undefined){quotes.splice(+t.dataset.rq,1);renderChips();markQuoted()}
+  if(t.dataset.st!==undefined)setMark(+t.dataset.st);
   const card=t.closest&&t.closest('.card');
   if(card){const g=S.groups.find(x=>x.id==card.dataset.id);
     if(t.dataset.del!==undefined&&confirm('删除这一组？')){S.groups=S.groups.filter(x=>x!==g);save();renderAll()}
@@ -398,6 +469,42 @@ $('#showZh').onchange=e=>$('#reader').classList.toggle('showzh',e.target.checked
 $('#bLoad').onclick=loadArticle;
 $('#bTrAll').onclick=trAll;
 $('#bSend').onclick=send;
+$('#bSave').onclick=async()=>{
+  if(!FSA)return exportAll();
+  try{
+    if(!fh)await pickFile();
+    else if(await fh.queryPermission(FPERM)!=='granted'&&await fh.requestPermission(FPERM)!=='granted'){setFS('perm');return toast('没有授权，无法写入')}
+  }catch(e){if(e.name==='AbortError')return;return toast('选择文件失败：'+e.message)}
+  updFh();await fileWrite(true);
+};
+$('#fhChange').onclick=async()=>{
+  try{await pickFile()}catch(e){if(e.name!=='AbortError')toast('选择文件失败：'+e.message);return}
+  updFh();await fileWrite(true);
+};
+$('#fhOff').onclick=async()=>{
+  if(!fh||!confirm('取消关联？已写好的备份文件不会被删除。'))return;
+  fh=null;try{await tx(['settings'],'readwrite',t=>t.objectStore('settings').delete('fh'))}catch(e){toast(e.message)}
+  setFS('');updFh();
+};
+$('#fhDl').onclick=exportAll;
+$('#bMark').onclick=()=>{
+  if(!curCh||!S.paras.length)return;
+  const h=document.querySelector('header').offsetHeight;
+  if($('#secRead').getBoundingClientRect().bottom<=h)return toast('先滚回文章里，再点书签');
+  const el=[...document.querySelectorAll('#reader .p')].find(e=>e.getBoundingClientRect().bottom>h+4);
+  if(!el)return;
+  const i=+el.dataset.i;
+  if(curCh.mark&&curCh.mark.i===i)return toast('书签已在第 '+(i+1)+' 段');
+  setMark(i);
+};
+$('#bJump').onclick=()=>{
+  if(!curCh||!curCh.mark)return;
+  const el=document.querySelector(`#reader .p[data-i="${curCh.mark.i}"]`);if(!el)return;
+  savePos();if(back)back.keep=true;
+  const h=document.querySelector('header').offsetHeight;
+  jumpAt=Date.now();scrollTo({top:scrollY+el.getBoundingClientRect().top-h-8,behavior:'smooth'});
+  if(back)$('#fabBack').style.display='block';
+};
 $('#ask').addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey))send()});
 /* ---------- shelf / book / navigation ---------- */
 function setView(v){
@@ -415,7 +522,7 @@ function renderShelf(){
 }
 function renderBook(){
   sel=new Set([...sel].filter(id=>CH.some(c=>c.id===id)));
-  $('#chlist').innerHTML=CH.length?CH.map(c=>`<div class="li" data-cid="${c.id}"><input type="checkbox" data-sel ${sel.has(c.id)?'checked':''}><div class="lt" data-openc><b>${esc(c.title)}</b><div class="meta">${c.paras.length} 段 · ${c.groups.length} 组问答${c.summary?' · 已摘要':''}</div></div><button data-renc>✎</button></div>`).join(''):'<div class="empty">还没有章节，点「新文章」</div>';
+  $('#chlist').innerHTML=CH.length?CH.map(c=>`<div class="li" data-cid="${c.id}"><input type="checkbox" data-sel ${sel.has(c.id)?'checked':''}><div class="lt" data-openc><b>${esc(c.title)}</b><div class="meta">${c.paras.length} 段 · ${c.groups.length} 组问答${c.mark&&c.mark.i<c.paras.length?' · 书签 '+(c.mark.i+1)+'/'+c.paras.length:''}${c.summary?' · 已摘要':''}</div></div><button data-renc>✎</button></div>`).join(''):'<div class="empty">还没有章节，点「新文章」</div>';
   $('#selInfo').textContent=sel.size?`已选 ${sel.size}`:'';
   $('#bDelSel').disabled=!sel.size;$('#bMove').disabled=!sel.size;$('#bSelAll').textContent=CH.length&&sel.size===CH.length?'取消全选':'全选';
 }
@@ -490,24 +597,35 @@ $('#bExp').onclick=()=>{
   const def=b.title.replace(/[\\/:*?"<>|]/g,'_')+'-'+new Date().toISOString().slice(0,10);
   let n=prompt('导出文件名（不用加 .json）',def);if(n===null)return;
   n=n.trim().replace(/\.json$/i,'').replace(/[\\/:*?"<>|]/g,'_')||def;
-  dl(n,{format:'rw-book',v:2,title:b.title,chapters:CH.map(c=>({title:c.title,paras:c.paras,groups:c.groups,summary:c.summary||''}))});
+  dl(n,{format:'rw-book',v:2,title:b.title,chapters:CH.map(c=>({title:c.title,paras:c.paras,groups:c.groups,summary:c.summary||'',mark:c.mark||null}))});
 };
 $('#bImp').onclick=()=>$('#impFile').click();
 const cleanP=p=>({en:String(p.en||''),zh:String(p.zh||'')});
 const cleanG=(g,k)=>({id:g.id||Date.now()+k,quotes:(g.quotes||[]).map(q=>({i:+q.i||0,en:q.en||'',zh:q.zh||'',busy:false,...(q.sel!==undefined?{sel:String(q.sel),l:q.l==='zh'?'zh':'en'}:{})})),q:String(g.q||''),a:String(g.a||''),on:!!g.on});
+const addBook=async(title,chs)=>{
+  const b={id:uid('b'),title:String(title||'导入的书'),created:Date.now()};
+  const recs=chs.map((c,k)=>{const paras=(c.paras||[]).map(cleanP),m=c.mark;return {id:uid('c')+k,bookId:b.id,idx:k+1,title:String(c.title||'第'+(k+1)+'章'),paras,groups:(Array.isArray(c.groups)?c.groups:[]).map(cleanG),summary:String(c.summary||''),mark:(m&&+m.i>=0&&+m.i<paras.length)?{i:+m.i,en:String(m.en||'')}:null}});
+  await tx(['books','chapters'],'readwrite',t=>{t.objectStore('books').put(b);recs.forEach(r=>t.objectStore('chapters').put(r))});
+  BK.push(b);return recs.length;
+};
 $('#impFile').onchange=async e=>{
   const f=e.target.files[0];e.target.value='';if(!f)return;
   try{
-    const d=JSON.parse(await f.text());let title,chs;
+    const d=JSON.parse(await f.text());
+    if(Array.isArray(d.books)){
+      const bs=d.books.filter(x=>x&&Array.isArray(x.chapters)&&x.chapters.length);
+      if(!bs.length)throw Error('文件格式不对：没有可导入的书');
+      let n=0;for(const x of bs)n+=await addBook(x.title,x.chapters);
+      renderShelf();toast(`已导入 ${bs.length} 本书，共 ${n} 章（与现有的书并存）`);return;
+    }
+    let title,chs;
     if(Array.isArray(d.chapters)){title=d.title;chs=d.chapters}
     else if(Array.isArray(d.paras)){title=null;chs=[{title:'第1章',paras:d.paras,groups:d.groups}]}
     else throw Error('文件格式不对：找不到书或文章段落');
     if(!chs.length)throw Error('文件格式不对：没有章节');
     title=String(title||f.name.replace(/\.json$/i,'')||'导入的书');
-    const b={id:uid('b'),title,created:Date.now()};
-    const recs=chs.map((c,k)=>({id:uid('c')+k,bookId:b.id,idx:k+1,title:String(c.title||'第'+(k+1)+'章'),paras:(c.paras||[]).map(cleanP),groups:(Array.isArray(c.groups)?c.groups:[]).map(cleanG),summary:String(c.summary||'')}));
-    await tx(['books','chapters'],'readwrite',t=>{t.objectStore('books').put(b);recs.forEach(r=>t.objectStore('chapters').put(r))});
-    BK.push(b);renderShelf();toast(`已导入「${title}」：${recs.length} 章`);
+    const n=await addBook(title,chs);
+    renderShelf();toast(`已导入「${title}」：${n} 章`);
   }catch(err){toast(err.message.startsWith('文件')?err.message:'导入失败：'+err.message)}
 };
 /* ---------- EPUB 导入 ---------- */
@@ -697,7 +815,7 @@ async function fetchModels(p){
   if(!r.ok)throw Error((j.error&&(j.error.message||j.error))||('HTTP '+r.status));
   return [...new Set((j.data||j.models||[]).map(m=>typeof m==='string'?m:(m.id||m.name)).filter(Boolean))].sort();
 }
-$('#bSet').onclick=()=>{D=JSON.parse(JSON.stringify(S.providers));dCur=cur().id;DT={...S.tr};DS={...S.sm};fillF();$('#fTr').value=S.cfg.trSys;$('#fSm').value=S.cfg.smSys;$('#fAuto').checked=S.cfg.autoOn;$('#pZh').checked=S.cfg.showZh;setTab('api');$('#dlg').showModal()};
+$('#bSet').onclick=()=>{D=JSON.parse(JSON.stringify(S.providers));dCur=cur().id;DT={...S.tr};DS={...S.sm};fillF();$('#fTr').value=S.cfg.trSys;$('#fSm').value=S.cfg.smSys;$('#fAuto').checked=S.cfg.autoOn;$('#pZh').checked=S.cfg.showZh;updFh();$('#pFs').value=S.cfg.fs;$('#pFsV').textContent=S.cfg.fs;setTab('api');$('#dlg').showModal()};
 $('#fProv').onchange=e=>{readF();dCur=+e.target.value;fillF()};
 $('#fAdd').onclick=()=>{readF();const p={...PDEF,models:[],id:Date.now(),name:'服务商'+(D.length+1)};D.push(p);dCur=p.id;fillF()};
 $('#fDel').onclick=()=>{if(D.length<2)return toast('至少保留一个服务商');if(!confirm('删除「'+dc().name+'」？'))return;D=D.filter(x=>x.id!==dCur);dCur=D[0].id;fillF()};
@@ -708,7 +826,11 @@ $('#fGet').onclick=async()=>{readF();const p=dc(),b=$('#fGet');b.disabled=true;b
   try{p.models=await fetchModels(p);fillModels();fillT();toast('获取到 '+p.models.length+' 个模型')}catch(e){toast(e.message)}
   b.disabled=false;b.textContent='获取模型'};
 $('#fCancel').onclick=()=>$('#dlg').close();
-$('#fSave').onclick=()=>{readF();S.providers=D;S.cur=dCur;S.tr=DT;S.sm=DS;S.cfg.smSys=$('#fSm').value.trim()||DEF.smSys;S.cfg.trSys=$('#fTr').value.trim()||DEF.trSys;S.cfg.autoOn=$('#fAuto').checked;S.cfg.showZh=$('#pZh').checked;save();$('#dlg').close();renderSet();toast('已保存')};
+function applyFs(v){v=+v;if(!(v>=12&&v<=30))v=DEF.fs;document.documentElement.style.setProperty('--fs',v+'px')}
+$('#pFs').oninput=e=>{$('#pFsV').textContent=e.target.value;applyFs(e.target.value)};
+$('#pFsR').onclick=()=>{const r=$('#pFs');r.value=DEF.fs;$('#pFsV').textContent=DEF.fs;applyFs(DEF.fs)};
+$('#dlg').addEventListener('close',()=>applyFs(S.cfg.fs));
+$('#fSave').onclick=()=>{readF();S.providers=D;S.cur=dCur;S.tr=DT;S.sm=DS;S.cfg.smSys=$('#fSm').value.trim()||DEF.smSys;S.cfg.trSys=$('#fTr').value.trim()||DEF.trSys;S.cfg.autoOn=$('#fAuto').checked;S.cfg.showZh=$('#pZh').checked;S.cfg.fs=+$('#pFs').value||DEF.fs;save();$('#dlg').close();renderSet();toast('已保存')};
 
 /* 移动章节到其他文件夹 */
 $('#bMove').onclick=()=>{
@@ -752,6 +874,7 @@ $('#bMerge').onclick=()=>{
   if(!confirm(`将 ${old.length} 段合并为 ${groups.length} 段`+(lost>0?`，有 ${lost} 段译文会丢失`:'')+'。继续？'))return;
   S.groups.forEach(g=>g.quotes.forEach(q=>{q.i=map[q.i]!==undefined?map[q.i]:Math.min(q.i,paras.length-1)}));
   quotes.forEach(q=>{q.i=map[q.i]!==undefined?map[q.i]:Math.min(q.i,paras.length-1)});
+  if(curCh&&curCh.mark){const m=curCh.mark;m.i=map[m.i]!==undefined?map[m.i]:Math.min(m.i,paras.length-1);m.en=paras[m.i].en.slice(0,40)}
   S.paras=paras;save();renderReader();renderAll();toast(`已合并：${old.length} → ${paras.length} 段`);
 };
 /* 拆分段落：切句 + 按字数 / 按句数攒块 */
@@ -811,6 +934,7 @@ function applySplit(chunker,label){
     q.i=j;
   };
   S.groups.forEach(g=>g.quotes.forEach(remap));quotes.forEach(remap);
+  if(curCh&&curCh.mark){remap(curCh.mark);curCh.mark.en=(paras[curCh.mark.i]||{en:''}).en.slice(0,40)}
   S.paras=paras;save();renderReader();renderAll();toast(`已拆分：${old.length} → ${paras.length} 段`);
 }
 $('#bSplitLen').onclick=()=>applySplit(t=>{
@@ -840,6 +964,7 @@ $('#edSave').onclick=()=>{
     q.i=j>=0?j:Math.min(q.i,paras.length-1);
   };
   S.groups.forEach(g=>g.quotes.forEach(remap));quotes.forEach(remap);
+  if(curCh&&curCh.mark){remap(curCh.mark);curCh.mark.en=(paras[curCh.mark.i]||{en:''}).en.slice(0,40)}
   S.paras=paras;$('#ded').close();save();renderReader();renderAll();toast('已重新分段：'+paras.length+' 段');
 };
 /* 弹窗打开时锁定背景滚动 */
@@ -871,8 +996,9 @@ async function init(){
   }catch(e){loadErr=true;toast('读取数据失败，已暂停保存：'+e.message)}
   norm();
   renderSet();renderReader();renderAll();
-  $('#showZh').checked=S.cfg.showZh;$('#reader').classList.toggle('showzh',S.cfg.showZh);
+  $('#showZh').checked=S.cfg.showZh;applyFs(S.cfg.fs);$('#reader').classList.toggle('showzh',S.cfg.showZh);
   ready=!loadErr;
+  if(ready)loadFH();
   if(ready){
     if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
     try{
