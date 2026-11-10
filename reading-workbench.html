@@ -66,6 +66,7 @@ button.del{color:var(--dg);border-color:var(--dg);background:transparent;font-si
 .qi input{width:20px;height:20px;margin-top:2px;flex:none}
 .qt{flex:1;font-size:14px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;cursor:pointer}
 .qi.on .qt b{color:var(--acc)}.qi:not(.on) .qt{color:var(--mute)}
+.hd{flex:none;width:30px;text-align:center;color:var(--mute);font-size:20px;line-height:22px;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}.qi.drag{opacity:.6;background:var(--bg)}
 .li{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
 .li input{width:20px;height:20px;flex:none}
 .lt{flex:1;min-width:0;cursor:pointer}.lt b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -81,7 +82,7 @@ body.nf{padding-bottom:0}
 <header>
   <button id="bBack" hidden>‹ 返回</button>
   <h1 id="hT">阅读工作台</h1>
-  <button id="bSet">⚙</button>
+  <button id="bSum" hidden>摘要</button><button id="bSet">⚙</button>
 </header>
 <main>
 <div id="vShelf">
@@ -107,7 +108,6 @@ body.nf{padding-bottom:0}
     <div id="reader"></div>
   </section>
   <section id="secQA" hidden>
-    <div id="qbar"><div class="bar" style="margin:0"><button id="bSum">摘要</button><button id="bQ">提示词队列</button></div></div>
     <div id="cards"></div>
   </section>
 </div></main>
@@ -121,7 +121,7 @@ body.nf{padding-bottom:0}
     <label><input type="checkbox" id="cEn" checked> 英文</label>
     <label><input type="checkbox" id="cZh" checked> 中文</label>
     <span class="sp"></span>
-    <button class="pri" id="bSend">发送</button>
+    <button id="bQ">队列</button><button class="pri" id="bSend">发送</button>
   </div>
 </div></footer>
 <div id="toast"></div>
@@ -230,8 +230,8 @@ function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';cl
 async function llm(system,msgs,tr){
   const c=tr==='sm'?smCfg():tr?trCfg():cur();if(!c.key||!c.model)throw Error('请先在 ⚙ 里填写 API Key 和模型名');
   const base=c.base.replace(/\/+$/,'');let url,h={'Content-Type':'application/json'},b;
-  if(c.fmt==='anthropic'){url=base+'/v1/messages';h['x-api-key']=c.key;h['anthropic-version']='2023-06-01';h['anthropic-dangerous-direct-browser-access']='true';b={model:c.model,max_tokens:4096,system,messages:msgs}}
-  else{url=base+'/chat/completions';h.Authorization='Bearer '+c.key;b={model:c.model,messages:[{role:'system',content:system},...msgs]}}
+  if(c.fmt==='anthropic'){url=base+'/v1/messages';h['x-api-key']=c.key;h['anthropic-version']='2023-06-01';h['anthropic-dangerous-direct-browser-access']='true';b={model:c.model,max_tokens:4096,messages:msgs};if(system)b.system=system}
+  else{url=base+'/chat/completions';h.Authorization='Bearer '+c.key;b={model:c.model,messages:[...(system?[{role:'system',content:system}]:[]),...msgs]}}
   let r;try{r=await fetch(url,{method:'POST',headers:h,body:JSON.stringify(b)})}catch(e){throw Error('网络请求失败，可能是接口不允许浏览器直连（CORS）')}
   const j=await r.json().catch(()=>({}));
   if(!r.ok)throw Error((j.error&&(j.error.message||j.error))||('HTTP '+r.status));
@@ -289,46 +289,63 @@ document.addEventListener('selectionchange',()=>{
 $('#fab').addEventListener('pointerdown',e=>e.preventDefault());
 $('#fab').addEventListener('click',()=>{
   if(!pending)return;
-  let useEn=$('#cEn').checked,useZh=$('#cZh').checked;
-  if(!useEn&&!useZh){if(pending.l==='en')useEn=true;else useZh=true}
-  const q={i:pending.i,en:'',zh:'',busy:false};
-  if(pending.l==='en'){
-    if(useEn)q.en=pending.text;
-    if(useZh){q.busy=true;trText(pending.text).then(z=>{q.zh=z}).catch(e=>toast(e.message)).finally(()=>{q.busy=false;renderChips()})}
-  }else{
-    if(useZh)q.zh=pending.text;
-    if(useEn)q.en=S.paras[pending.i].en; /* 在译文中选取时，英文取整段原文 */
-  }
+  const useEn=$('#cEn').checked,useZh=$('#cZh').checked,p=S.paras[pending.i]||{};
+  const q={i:pending.i,sel:pending.text,l:pending.l,en:useEn?p.en||'':'',zh:useZh?p.zh||'':'',busy:false};
   quotes.push(q);pending=null;getSelection().removeAllRanges();$('#fab').style.display='none';renderChips();markQuoted();
 });
 function renderChips(){
-  $('#chips').innerHTML=quotes.map((q,k)=>`<div class="chip"><span>第${q.i+1}段｜${esc((q.en||'')+(q.en&&q.zh?' ／ ':'')+(q.busy?'（译文生成中…）':q.zh||''))}</span><button data-rq="${k}">✕</button></div>`).join('');
+  $('#chips').innerHTML=quotes.map((q,k)=>`<div class="chip"><span>第${q.i+1}段｜${esc(q.sel!==undefined?q.sel:(q.en||'')+(q.en&&q.zh?' ／ ':'')+(q.busy?'（译文生成中…）':q.zh||''))}</span><button data-rq="${k}">✕</button></div>`).join('');
 }
 
 /* ---------- groups ---------- */
-const fmtQuote=q=>`【引用·第${q.i+1}段】`+(q.en?`\nEN: ${q.en}`:'')+(q.zh?`\nZH: ${q.zh}`:'');
-const fmtGroup=g=>(g.quotes.length?g.quotes.map(fmtQuote).join('\n\n')+'\n\n':'')+'问题：'+g.q;
+const selDiff=q=>{const t=(q.sel||'').trim();return !!t&&t!==(q.en||'').trim()&&t!==(q.zh||'').trim()};
+const fmtQuote=q=>{
+  if(q.sel===undefined)return `【引用·第${q.i+1}段】`+(q.en?`\nEN: ${q.en}`:'')+(q.zh?`\nZH: ${q.zh}`:'');
+  const ss=q.sels||(selDiff(q)?[q.sel]:[]);
+  return `【引用·第${q.i+1}段】`+(q.en?`\n原文：${q.en}`:'')+(q.zh?`\n译文：${q.zh}`:'')+ss.map(x=>`\n选中：${x}`).join('');
+};
+const mergeQ=qs=>{const o=[];qs.forEach(q=>{const m=q.sel!==undefined&&o.find(x=>x.sel!==undefined&&x.i===q.i);if(m){if(selDiff(q))m.sels.push(q.sel)}else o.push({...q,sels:q.sel!==undefined&&selDiff(q)?[q.sel]:[]})});return o};
+const fmtGroup=g=>(g.quotes.length?mergeQ(g.quotes).map(fmtQuote).join('\n\n')+'\n\n':'')+'问题：'+g.q;
 const sumList=()=>curCh?CH.filter(c=>c.idx<curCh.idx&&c.summary&&c.summary.trim()).sort((a,b)=>a.idx-b.idx):[];
 const fullText=()=>S.paras.map(p=>p.en).join('\n\n');
-const sysPrompt=()=>{
-  let t=cur().sys;
-  const ss=sumList().filter(c=>c.sumOn!==false);
-  if(ss.length)t+='\n\n【前文章节摘要】\n'+ss.map(c=>`（${c.title}）\n${c.summary.trim()}`).join('\n\n');
-  if(curCh&&curCh.fullOn!==false&&S.paras.length)t+='\n\n【本章全文】\n'+fullText();
-  return t;
+const ordIds=()=>{
+  if(!curCh)return [];
+  const D=['sys',...sumList().map(c=>c.id),...(curCh.summary&&curCh.summary.trim()?['self']:[]),'full',...S.groups.map(g=>String(g.id)),'cur'],ok=new Set(D);
+  const R=(curCh.order||[]).filter((x,k,a)=>ok.has(x)&&a.indexOf(x)===k);
+  D.forEach((x,k)=>{if(R.includes(x))return;let p=-1;for(let j=k-1;j>=0&&p<0;j--)p=R.indexOf(D[j]);R.splice(p+1,0,x)});
+  return R;
 };
+const draft=()=>{const q=$('#ask').value.trim();return quotes.length||q?fmtGroup({quotes,q}):''};
+function build(fin){
+  let sys=curCh?'':cur().sys,pend=[],post=[],msgs=[],after=false,first=true;
+  for(const id of ordIds()){
+    const add=t=>(after?post:pend).push(t);
+    if(id==='sys'){if(first)sys=cur().sys;else add('【提示词】\n'+cur().sys)}
+    else if(id==='cur')after=true;
+    else if(id==='self'){if(curCh.selfOn)add('【本章摘要】\n'+curCh.summary.trim())}
+    else if(id==='full'){if(curCh.fullOn!==false&&S.paras.length)add('【本章全文】\n'+fullText())}
+    else{
+      const c=CH.find(x=>x.id===id);
+      if(c){if(c.sumOn!==false)add(`【前文章节摘要·${c.title}】\n${c.summary.trim()}`)}
+      else{const g=S.groups.find(x=>String(x.id)===id);if(g&&g.on&&g.a){msgs.push({role:'user',content:[...pend,fmtGroup(g)].join('\n\n')},{role:'assistant',content:g.a});pend=[]}}
+    }
+    first=false;
+  }
+  msgs.push({role:'user',content:[...pend,fin,...post].join('\n\n')});
+  return {sys,msgs};
+}
 const tok=t=>{t=String(t);let c=0;for(const ch of t)if(ch>='\u4e00'&&ch<='\u9fff')c++;return Math.ceil(c*1.3+(t.length-c)/4)};
 const persistCh=c=>{syncCur();return dbPut('chapters',c)};
-function queueMsgs(){const m=[];S.groups.filter(g=>g.on&&g.a).forEach(g=>m.push({role:'user',content:fmtGroup(g)},{role:'assistant',content:g.a}));return m}
+
 function renderCards(){
   $('#cards').innerHTML=S.groups.length?S.groups.map((g,n)=>`<div class="card ${g.on?'on':''}" data-id="${g.id}">
     <div class="qh"><b>第${n+1}组</b><span class="sp"></span><button data-cp>复制</button></div>
-    ${g.quotes.map(q=>`<div class="quote"><b>第${q.i+1}段</b>\n${esc([q.en&&'EN: '+q.en,q.zh&&'ZH: '+q.zh].filter(Boolean).join('\n'))}</div>`).join('')}
+    ${g.quotes.map(q=>`<div class="quote"><b>第${q.i+1}段</b>\n${esc(q.sel!==undefined?q.sel:[q.en&&'EN: '+q.en,q.zh&&'ZH: '+q.zh].filter(Boolean).join('\n'))}</div>`).join('')}
     <div class="qq">${esc(g.q)}</div><div class="aa">${md(g.a)}</div><div class="cf"><button class="del" data-del>删除卡片</button><span class="sp"></span><label><input type="checkbox" data-on ${g.on?'checked':''}> 入队</label></div></div>`).join(''):'<div class="empty">选中文章里的一段，点「引用选中」，再提问</div>';
 }
 function updSumBtn(){$('#bSum').textContent=curCh&&curCh.summary?'摘要 ✓':'摘要'}
 function renderInfo(){
-  const n=tok(sysPrompt())+queueMsgs().reduce((a,m)=>a+tok(m.content),0);
+  const b=build(draft()),n=tok(b.sys)+b.msgs.reduce((a,m)=>a+tok(m.content),0);
   $('#dqInfo').textContent='约 '+n+' tokens';updSumBtn();
 }
 function renderAll(){renderCards();renderQueue();renderInfo();renderChips();markQuoted()}
@@ -337,10 +354,10 @@ async function send(){
   const q=$('#ask').value.trim();if(!q||busy)return;
   if(quotes.some(x=>x.busy))return toast('译文还在生成，稍等');
   const g={id:Date.now(),quotes:[...quotes],q,a:'',on:S.cfg.autoOn};
-  const msgs=[...queueMsgs(),{role:'user',content:fmtGroup(g)}];
+  const {sys,msgs}=build(fmtGroup(g));
   busy=true;$('#bSend').disabled=true;$('#bSend').textContent='思考中…';
   try{
-    g.a=await llm(sysPrompt(),msgs);
+    g.a=await llm(sys,msgs);
     savePos();S.groups.push(g);quotes=[];$('#ask').value='';save();renderAll();jumpTo(g.id);
   }catch(e){toast(e.message)}
   busy=false;$('#bSend').disabled=false;$('#bSend').textContent='发送';
@@ -393,7 +410,7 @@ function setView(v){
   V.view=v;
   $('#vShelf').hidden=v!=='shelf';$('#vBook').hidden=v!=='book';$('#vRead').hidden=v!=='read';
   $('footer').hidden=v!=='read';document.body.classList.toggle('nf',v!=='read');
-  $('#bBack').hidden=v==='shelf';
+  $('#bBack').hidden=v==='shelf';$('#bSum').hidden=v!=='read';
   $('#hT').textContent=v==='shelf'?'阅读工作台':v==='book'?V.book.title:(curCh?curCh.title:'');
   if(v!=='read'){$('#fab').style.display='none';$('#fabBack').style.display='none';back=null}
   scrollTo(0,0);
@@ -483,7 +500,7 @@ $('#bExp').onclick=()=>{
 };
 $('#bImp').onclick=()=>$('#impFile').click();
 const cleanP=p=>({en:String(p.en||''),zh:String(p.zh||'')});
-const cleanG=(g,k)=>({id:g.id||Date.now()+k,quotes:(g.quotes||[]).map(q=>({i:+q.i||0,en:q.en||'',zh:q.zh||'',busy:false})),q:String(g.q||''),a:String(g.a||''),on:!!g.on});
+const cleanG=(g,k)=>({id:g.id||Date.now()+k,quotes:(g.quotes||[]).map(q=>({i:+q.i||0,en:q.en||'',zh:q.zh||'',busy:false,...(q.sel!==undefined?{sel:String(q.sel),l:q.l==='zh'?'zh':'en'}:{})})),q:String(g.q||''),a:String(g.a||''),on:!!g.on});
 $('#impFile').onchange=async e=>{
   const f=e.target.files[0];e.target.value='';if(!f)return;
   try{
@@ -575,15 +592,43 @@ const firstSent=a=>{const t=String(a).replace(/[*`#>|]/g,'').split('\n').map(x=>
 function renderQueue(){
   const L=$('#qlist'),st=L.scrollTop,ss=sumList(),R=[];
   if(curCh){const miss=CH.filter(c=>c.idx<curCh.idx&&!(c.summary&&c.summary.trim())).length;if(miss)R.push(`<div class="meta" style="padding:6px 0">前面还有 ${miss} 章没有摘要</div>`)}
-  ss.forEach((c,n)=>{const on=c.sumOn!==false;R.push(`<div class="qi ${on?'on':''}" data-id="${c.id}"><input type="checkbox" data-qs ${on?'checked':''}><div class="qt"><b>摘要${n+1}</b> ${esc(c.title)}：${esc(c.summary.trim())}</div><span class="tk">${tok(c.summary)}</span><button data-esb>✎</button></div>`)});
-  if(curCh){const on=curCh.fullOn!==false;R.push(`<div class="qi ${on?'on':''}" data-id="full"><input type="checkbox" data-qf ${on?'checked':''}><div class="qt"><b>全文</b> 本章 ${S.paras.length} 段</div><span class="tk">${tok(fullText())}</span></div>`)}
-  S.groups.forEach((g,n)=>R.push(`<div class="qi ${g.on?'on':''}" data-id="${g.id}"><input type="checkbox" data-qon ${g.on?'checked':''}><div class="qt" data-go><b>卡片${n+1}</b> ${esc(firstSent(g.a)||g.q)}</div><span class="tk">${tok(fmtGroup(g)+g.a)}</span></div>`));
+  const H='<span class="hd" data-hd>≡</span>',D0='<input type="checkbox" checked disabled>';
+  const row=(id,on,chk,t,k,btn='',ex='')=>`<div class="qi ${on?'on':''}" data-id="${id}">${chk}<div class="qt"${ex}>${t}</div><span class="tk">${k}</span>${btn}${H}</div>`;
+  ordIds().forEach(id=>{
+    if(id==='sys')R.push(row(id,1,D0,`<b>提示词</b> ${esc(cur().sys)}`,tok(cur().sys)));
+    else if(id==='cur'){const d=draft();R.push(row(id,1,D0,`<b>当前引用及问题</b> ${esc(d||'（还没有输入）')}`,d?tok(d):0))}
+    else if(id==='self'){const on=!!curCh.selfOn;R.push(row(id,on,`<input type="checkbox" data-qself ${on?'checked':''}>`,`<b>本章摘要</b> ${esc(curCh.summary.trim())}`,tok(curCh.summary),'<button data-esb>✎</button>'))}
+    else if(id==='full'){const on=curCh.fullOn!==false;R.push(row(id,on,`<input type="checkbox" data-qf ${on?'checked':''}>`,`<b>全文</b> 本章 ${S.paras.length} 段`,tok(fullText())))}
+    else{
+      const c=CH.find(x=>x.id===id);
+      if(c){const on=c.sumOn!==false;R.push(row(id,on,`<input type="checkbox" data-qs ${on?'checked':''}>`,`<b>摘要${ss.indexOf(c)+1}</b> ${esc(c.title)}：${esc(c.summary.trim())}`,tok(c.summary),'<button data-esb>✎</button>'))}
+      else{const g=S.groups.find(x=>String(x.id)===id);if(g)R.push(row(id,g.on,`<input type="checkbox" data-qon ${g.on?'checked':''}>`,`<b>卡片${S.groups.indexOf(g)+1}</b> ${esc(firstSent(g.a)||g.q)}`,tok(fmtGroup(g)+g.a),'',' data-go'))}
+    }
+  });
   const all=ss.every(c=>c.sumOn!==false)&&(!curCh||curCh.fullOn!==false)&&S.groups.every(g=>g.on);
   $('#dqAll').textContent=ss.length+S.groups.length&&all?'取消全选':'全选';$('#dqAll').disabled=!(ss.length||S.groups.length||curCh);
   L.innerHTML=R.length?R.join(''):'<div class="empty">队列是空的</div>';L.scrollTop=st;
 }
 $('#bQ').onclick=()=>{renderQueue();renderInfo();$('#dq').showModal()};
 $('#dqClose').onclick=()=>$('#dq').close();
+/* 队列拖动排序：按住右侧手柄 */
+(()=>{
+  const L=$('#qlist');let row=null;
+  L.addEventListener('pointerdown',e=>{const h=e.target.closest('[data-hd]');if(!h)return;row=h.closest('.qi');row.classList.add('drag');h.setPointerCapture(e.pointerId);e.preventDefault()});
+  L.addEventListener('pointermove',e=>{
+    if(!row)return;const r=L.getBoundingClientRect();
+    if(e.clientY<r.top+36)L.scrollTop-=10;else if(e.clientY>r.bottom-36)L.scrollTop+=10;
+    for(const o of L.querySelectorAll('.qi')){
+      if(o===row)continue;const b=o.getBoundingClientRect(),mid=b.top+b.height/2;
+      if(e.clientY<b.top||e.clientY>b.bottom)continue;
+      const down=!!(row.compareDocumentPosition(o)&Node.DOCUMENT_POSITION_FOLLOWING);
+      if(down?e.clientY>mid:e.clientY<mid)L.insertBefore(row,down?o.nextSibling:o);
+      break;
+    }
+  });
+  const end=()=>{if(!row)return;row.classList.remove('drag');row=null;if(curCh){curCh.order=[...L.querySelectorAll('.qi')].map(x=>x.dataset.id);save()}renderQueue();renderInfo()};
+  L.addEventListener('pointerup',end);L.addEventListener('pointercancel',end);
+})();
 $('#dqAll').onclick=()=>{
   const ss=sumList();const v=!(ss.every(c=>c.sumOn!==false)&&(!curCh||curCh.fullOn!==false)&&S.groups.every(g=>g.on));
   ss.forEach(c=>{if((c.sumOn!==false)!==v){c.sumOn=v;persistCh(c)}});if(curCh)curCh.fullOn=v;S.groups.forEach(g=>g.on=v);save();renderAll();
@@ -592,13 +637,14 @@ document.addEventListener('change',e=>{
   const t=e.target,row=t.closest&&t.closest('.qi');if(!row)return;const id=row.dataset.id;
   if(t.dataset.qs!==undefined){const c=CH.find(x=>x.id===id);c.sumOn=t.checked;persistCh(c)}
   else if(t.dataset.qf!==undefined){curCh.fullOn=t.checked;save()}
+  else if(t.dataset.qself!==undefined){curCh.selfOn=t.checked;save()}
   else if(t.dataset.qon!==undefined){S.groups.find(x=>x.id==id).on=t.checked;save();renderAll();return}
   else return;
   renderQueue();renderInfo();
 });
 document.addEventListener('click',e=>{
   const row=e.target.closest&&e.target.closest('.qi');if(!row)return;
-  if(e.target.closest('[data-esb]')){const c=CH.find(x=>x.id===row.dataset.id);$('#dq').close();if(c)openSum(c);return}
+  if(e.target.closest('[data-esb]')){const c=row.dataset.id==='self'?curCh:CH.find(x=>x.id===row.dataset.id);$('#dq').close();if(c)openSum(c);return}
   if(e.target.closest('[data-go]')){const id=row.dataset.id;$('#dq').close();savePos();jumpTo(id)}
 });
 /* summary */
