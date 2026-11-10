@@ -117,9 +117,6 @@ body.nf{padding-bottom:0}
   <div id="chips"></div>
   <textarea id="ask" placeholder="针对引用的段落提问；没有引用也可以直接问"></textarea>
   <div class="row">
-    <label>引用版本</label>
-    <label><input type="checkbox" id="cEn" checked> 英文</label>
-    <label><input type="checkbox" id="cZh" checked> 中文</label>
     <span class="sp"></span>
     <button id="bQ">队列</button><button class="pri" id="bSend">发送</button>
   </div>
@@ -167,9 +164,6 @@ body.nf{padding-bottom:0}
   </div>
   <div id="panePref" hidden>
     <label style="display:flex;gap:6px;align-items:center;margin-top:12px"><input type="checkbox" id="pZh"> 打开时默认显示译文</label>
-    <label>引用选项默认勾选</label>
-    <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="pEn"> 英文</label>
-    <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="pQZh"> 中文</label>
   </div>
   <div class="row"><span class="sp"></span><button id="fCancel">取消</button><button class="pri" id="fSave">保存</button></div>
 </dialog>
@@ -189,7 +183,7 @@ const md=s=>{const L=String(s).split('\n');let o='',i=0;
     }else{const m=L[i].match(/^#{1,6}\s+(.*)$/);o+=(m?'<b>'+inl(m[1])+'</b>':inl(L[i]))+'\n';i++}
   }
   return o.replace(/\n$/,'')};
-const DEF={autoOn:false,showZh:false,qEn:true,qZh:true,smSys:'请用中文为这一章写简短摘要：列出主要人物、关键术语及其含义、主要情节或论点，便于阅读后续章节时参考。控制在300字以内。',trSys:'把用户给出的英文翻译成流畅、准确的中文，只输出译文。',sys:'你是阅读助手。用户在阅读一篇文章，会引用其中的片段提问。请结合全文与引用内容，用中文清晰、准确地回答。'};
+const DEF={autoOn:false,showZh:false,smSys:'请用中文为这一章写简短摘要：列出主要人物、关键术语及其含义、主要情节或论点，便于阅读后续章节时参考。控制在300字以内。',trSys:'把用户给出的英文翻译成流畅、准确的中文，只输出译文。',sys:'你是阅读助手。用户在阅读一篇文章，会引用其中的片段提问。请结合全文与引用内容，用中文清晰、准确地回答。'};
 const PDEF={name:'默认',fmt:'openai',base:'https://api.openai.com/v1',key:'',model:'',models:[],sys:DEF.sys};
 const SEL0={prov:0,model:''};
 let S={cfg:{...DEF},providers:[],cur:0,tr:{...SEL0},sm:{...SEL0},paras:[],groups:[],useArt:true};
@@ -289,8 +283,8 @@ document.addEventListener('selectionchange',()=>{
 $('#fab').addEventListener('pointerdown',e=>e.preventDefault());
 $('#fab').addEventListener('click',()=>{
   if(!pending)return;
-  const useEn=$('#cEn').checked,useZh=$('#cZh').checked,p=S.paras[pending.i]||{};
-  const q={i:pending.i,sel:pending.text,l:pending.l,en:useEn?p.en||'':'',zh:useZh?p.zh||'':'',busy:false};
+  const p=S.paras[pending.i]||{};
+  const q={i:pending.i,sel:pending.text,l:pending.l,en:p.en||'',zh:'',busy:false};
   quotes.push(q);pending=null;getSelection().removeAllRanges();$('#fab').style.display='none';renderChips();markQuoted();
 });
 function renderChips(){
@@ -703,7 +697,7 @@ async function fetchModels(p){
   if(!r.ok)throw Error((j.error&&(j.error.message||j.error))||('HTTP '+r.status));
   return [...new Set((j.data||j.models||[]).map(m=>typeof m==='string'?m:(m.id||m.name)).filter(Boolean))].sort();
 }
-$('#bSet').onclick=()=>{D=JSON.parse(JSON.stringify(S.providers));dCur=cur().id;DT={...S.tr};DS={...S.sm};fillF();$('#fTr').value=S.cfg.trSys;$('#fSm').value=S.cfg.smSys;$('#fAuto').checked=S.cfg.autoOn;$('#pZh').checked=S.cfg.showZh;$('#pEn').checked=S.cfg.qEn;$('#pQZh').checked=S.cfg.qZh;setTab('api');$('#dlg').showModal()};
+$('#bSet').onclick=()=>{D=JSON.parse(JSON.stringify(S.providers));dCur=cur().id;DT={...S.tr};DS={...S.sm};fillF();$('#fTr').value=S.cfg.trSys;$('#fSm').value=S.cfg.smSys;$('#fAuto').checked=S.cfg.autoOn;$('#pZh').checked=S.cfg.showZh;setTab('api');$('#dlg').showModal()};
 $('#fProv').onchange=e=>{readF();dCur=+e.target.value;fillF()};
 $('#fAdd').onclick=()=>{readF();const p={...PDEF,models:[],id:Date.now(),name:'服务商'+(D.length+1)};D.push(p);dCur=p.id;fillF()};
 $('#fDel').onclick=()=>{if(D.length<2)return toast('至少保留一个服务商');if(!confirm('删除「'+dc().name+'」？'))return;D=D.filter(x=>x.id!==dCur);dCur=D[0].id;fillF()};
@@ -714,7 +708,7 @@ $('#fGet').onclick=async()=>{readF();const p=dc(),b=$('#fGet');b.disabled=true;b
   try{p.models=await fetchModels(p);fillModels();fillT();toast('获取到 '+p.models.length+' 个模型')}catch(e){toast(e.message)}
   b.disabled=false;b.textContent='获取模型'};
 $('#fCancel').onclick=()=>$('#dlg').close();
-$('#fSave').onclick=()=>{readF();S.providers=D;S.cur=dCur;S.tr=DT;S.sm=DS;S.cfg.smSys=$('#fSm').value.trim()||DEF.smSys;S.cfg.trSys=$('#fTr').value.trim()||DEF.trSys;S.cfg.autoOn=$('#fAuto').checked;S.cfg.showZh=$('#pZh').checked;S.cfg.qEn=$('#pEn').checked;S.cfg.qZh=$('#pQZh').checked;save();$('#dlg').close();renderSet();toast('已保存')};
+$('#fSave').onclick=()=>{readF();S.providers=D;S.cur=dCur;S.tr=DT;S.sm=DS;S.cfg.smSys=$('#fSm').value.trim()||DEF.smSys;S.cfg.trSys=$('#fTr').value.trim()||DEF.trSys;S.cfg.autoOn=$('#fAuto').checked;S.cfg.showZh=$('#pZh').checked;save();$('#dlg').close();renderSet();toast('已保存')};
 
 /* 移动章节到其他文件夹 */
 $('#bMove').onclick=()=>{
@@ -877,7 +871,7 @@ async function init(){
   }catch(e){loadErr=true;toast('读取数据失败，已暂停保存：'+e.message)}
   norm();
   renderSet();renderReader();renderAll();
-  $('#showZh').checked=S.cfg.showZh;$('#reader').classList.toggle('showzh',S.cfg.showZh);$('#cEn').checked=S.cfg.qEn;$('#cZh').checked=S.cfg.qZh;
+  $('#showZh').checked=S.cfg.showZh;$('#reader').classList.toggle('showzh',S.cfg.showZh);
   ready=!loadErr;
   if(ready){
     if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
