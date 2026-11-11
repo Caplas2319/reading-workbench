@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
 <title>阅读工作台</title>
 <style>
 :root{--bg:#f3f5f2;--card:#fff;--ink:#1d2b2a;--mute:#6b7a78;--line:#d9e0dd;--acc:#1f6f6b;--hl:#e4eda8;--on:#1f6f6b;--dg:#b3402f;--star:#d9a400;color-scheme:light}
@@ -22,13 +22,14 @@ textarea,input[type=text],input[type=password],select{width:100%;background:var(
 #paste{height:min(62vh,480px);resize:vertical}
 .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0;color:var(--mute);font-size:13px}
 .bar label{display:flex;gap:4px;align-items:center}
-#reader .p{position:relative;min-height:58px;padding:6px 0 6px 12px;border-left:3px solid transparent;font-family:"Noto Serif SC","Songti SC",Georgia,serif;font-size:var(--fs,16.5px);line-height:1.75}
+#reader .p{position:relative;min-height:90px;padding:6px 0 6px 12px;border-left:3px solid transparent;font-family:"Noto Serif SC","Songti SC",Georgia,serif;font-size:var(--fs,16.5px);line-height:1.75}
 #reader .p.q{border-left-color:var(--acc)}
 #reader .zh{color:var(--mute);font-family:system-ui,"PingFang SC",sans-serif;font-size:calc(var(--fs,16.5px)*.88);margin-top:2px;display:none}
 #reader.showzh .zh{display:block}
 .p .tr{position:absolute;right:0;top:30px;font-size:12px;padding:1px 6px;opacity:.55}
 .p .en,.p .zh{padding-right:44px}
 .p .st{position:absolute;right:0;top:0;font-size:18px;line-height:1.3;padding:2px 6px;border:none;background:transparent;color:var(--mute);opacity:.7}
+.p .pq{position:absolute;right:9px;top:62px;width:22px;height:22px;margin:0;accent-color:var(--acc)}
 .p.bm .st{color:var(--star);opacity:1}
 ::selection{background:var(--hl);color:var(--ink)}
 .card{background:var(--card);border:1px solid var(--line);border-left:5px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:12px}
@@ -43,7 +44,7 @@ textarea,input[type=text],input[type=password],select{width:100%;background:var(
 .tw{overflow-x:auto;margin:6px 0}.tw table{border-collapse:collapse;font-size:13.5px;white-space:normal}.tw th,.tw td{border:1px solid var(--line);padding:4px 8px;text-align:left;vertical-align:top;min-width:4.5em}.tw th{background:var(--bg)}
 code{background:var(--bg);padding:0 4px;border-radius:4px;font-size:.92em}
 #qbar{position:sticky;top:50px;z-index:4;background:var(--bg);padding:6px 0;border-bottom:1px solid var(--line);margin:0 0 10px}
-footer{position:fixed;left:0;right:0;bottom:0;background:var(--bg);border-top:1px solid var(--line);padding:8px 14px calc(10px + env(safe-area-inset-bottom,0px))}
+footer{position:fixed;left:0;right:0;bottom:0;background:var(--bg);border-top:1px solid var(--line);padding:8px 14px calc(10px + env(safe-area-inset-bottom,0px));transform:translateY(calc(-1 * var(--kb,0px)))}
 footer .in{max-width:760px;margin:0 auto}
 #chips{display:flex;flex-direction:column;gap:4px;max-height:84px;overflow:auto;margin-bottom:6px}
 .chip{display:flex;gap:6px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:3px 8px;font-size:12.5px}
@@ -51,8 +52,8 @@ footer .in{max-width:760px;margin:0 auto}
 #ask{height:56px;resize:none}
 .row{display:flex;gap:8px;align-items:center;margin-top:6px}
 .row .sp{flex:1}
-#fab{position:fixed;right:14px;bottom:calc(190px + env(safe-area-inset-bottom,0px));z-index:6;display:none;box-shadow:0 2px 10px #0004}
-#fabBack{position:fixed;left:14px;bottom:calc(190px + env(safe-area-inset-bottom,0px));z-index:6;display:none;box-shadow:0 2px 10px #0004}
+#fab{position:fixed;right:14px;bottom:calc(190px + var(--kb,0px) + env(safe-area-inset-bottom,0px));z-index:6;display:none;box-shadow:0 2px 10px #0004}
+#fabBack{position:fixed;left:14px;bottom:calc(190px + var(--kb,0px) + env(safe-area-inset-bottom,0px));z-index:6;display:none;box-shadow:0 2px 10px #0004}
 #toast{position:fixed;left:50%;top:64px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:8px;z-index:20;display:none;max-width:88vw;font-size:13px}
 dialog{border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink);width:min(480px,92vw);padding:16px}
 dialog label{display:block;margin:10px 0 3px;font-size:13px;color:var(--mute)}
@@ -86,7 +87,7 @@ body.nf{padding-bottom:0}
 <header>
   <button id="bBack" hidden>‹ 返回</button>
   <h1 id="hT">阅读工作台</h1>
-  <button id="bSum" hidden>摘要</button><button id="bSet">⚙</button>
+  <button id="bSave">保存</button><button id="bSet">⚙</button>
 </header>
 <main>
 <div id="vShelf">
@@ -122,7 +123,7 @@ body.nf{padding-bottom:0}
   <textarea id="ask" placeholder="针对引用的段落提问；没有引用也可以直接问"></textarea>
   <div class="row">
     <span class="sp"></span>
-    <button id="bSave">保存</button><button id="bMark">书签</button><button id="bJump" disabled>跳转</button><button id="bQ">队列</button><button class="pri" id="bSend">发送</button>
+    <button id="bSum">摘要</button><button id="bJump" disabled>跳转</button><button id="bQ">队列</button><button class="pri" id="bSend">发送</button>
   </div>
 </div></footer>
 <div id="toast"></div>
@@ -296,8 +297,9 @@ const trText=t=>llm(S.cfg.trSys||DEF.trSys,[{role:'user',content:t}],true);
 
 /* ---------- reader ---------- */
 const isBm=i=>!!(curCh&&curCh.mark&&curCh.mark.i===i);
+const wq=i=>quotes.some(q=>q.sel===undefined&&q.i===i);
 const paraHtml=i=>{const p=S.paras[i],bm=isBm(i);
-  return `<div class="p${bm?' bm':''}" data-i="${i}"><div class="en" data-l="en">${esc(p.en)}</div>${p.zh?`<div class="zh" data-l="zh">${esc(p.zh)}</div>`:''}<button class="tr" data-tr="${i}">${p.zh?'重译':'译'}</button><button class="st" data-st="${i}" aria-label="书签">${bm?'★':'☆'}</button></div>`};
+  return `<div class="p${bm?' bm':''}" data-i="${i}"><div class="en" data-l="en">${esc(p.en)}</div>${p.zh?`<div class="zh" data-l="zh">${esc(p.zh)}</div>`:''}<button class="tr" data-tr="${i}">${p.zh?'重译':'译'}</button><input type="checkbox" class="pq" data-pq="${i}" aria-label="整段引用"${wq(i)?' checked':''}><button class="st" data-st="${i}" aria-label="书签">${bm?'★':'☆'}</button></div>`};
 function renderReader(){
   $('#reader').innerHTML=S.paras.map((_,i)=>paraHtml(i)).join('');
   markQuoted();
@@ -326,7 +328,7 @@ function loadArticle(){
 }
 async function trOne(i){
   const zh=await trText(S.paras[i].en);S.paras[i].zh=zh;save();
-  const el=document.querySelector(`#reader .p[data-i="${i}"]`);if(el)el.outerHTML=paraHtml(i);markQuoted();
+  const el=document.querySelector(`#reader .p[data-i="${i}"]`);if(el)el.outerHTML=paraHtml(i);quotes.forEach(q=>{if(q.sel===undefined&&q.i===i)q.zh=zh});markQuoted();renderChips();
 }
 async function trAll(){
   const idx=S.paras.map((_,i)=>i).filter(i=>!S.paras[i].zh);if(!idx.length)return toast('已全部翻译');
@@ -357,8 +359,9 @@ $('#fab').addEventListener('click',()=>{
   const q={i:pending.i,sel:pending.text,l:pending.l,en:p.en||'',zh:'',busy:false};
   quotes.push(q);pending=null;getSelection().removeAllRanges();$('#fab').style.display='none';renderChips();markQuoted();
 });
+function syncPq(){document.querySelectorAll('#reader [data-pq]').forEach(c=>{c.checked=wq(+c.dataset.pq)})}
 function renderChips(){
-  $('#chips').innerHTML=quotes.map((q,k)=>`<div class="chip"><span>第${q.i+1}段｜${esc(q.sel!==undefined?q.sel:(q.en||'')+(q.en&&q.zh?' ／ ':'')+(q.busy?'（译文生成中…）':q.zh||''))}</span><button data-rq="${k}">✕</button></div>`).join('');
+  $('#chips').innerHTML=quotes.map((q,k)=>`<div class="chip"><span>第${q.i+1}段｜${esc(q.sel!==undefined?q.sel:(q.en||'')+(q.en&&q.zh?' ／ ':'')+(q.busy?'（译文生成中…）':q.zh||''))}</span><button data-rq="${k}">✕</button></div>`).join('');syncPq();
 }
 
 /* ---------- groups ---------- */
@@ -465,6 +468,12 @@ document.addEventListener('change',e=>{
   const card=e.target.closest&&e.target.closest('.card');
   if(card&&e.target.dataset.on!==undefined){S.groups.find(x=>x.id==card.dataset.id).on=e.target.checked;save();renderAll()}
 });
+document.addEventListener('change',e=>{
+  const t=e.target;if(!t.dataset||t.dataset.pq===undefined)return;const i=+t.dataset.pq;
+  if(t.checked){if(!wq(i)){const p=S.paras[i]||{};quotes.push({i,en:p.en||'',zh:p.zh||'',busy:false})}}
+  else quotes=quotes.filter(q=>!(q.sel===undefined&&q.i===i));
+  renderChips();markQuoted();renderInfo();
+});
 $('#showZh').onchange=e=>$('#reader').classList.toggle('showzh',e.target.checked);
 $('#bLoad').onclick=loadArticle;
 $('#bTrAll').onclick=trAll;
@@ -487,16 +496,6 @@ $('#fhOff').onclick=async()=>{
   setFS('');updFh();
 };
 $('#fhDl').onclick=exportAll;
-$('#bMark').onclick=()=>{
-  if(!curCh||!S.paras.length)return;
-  const h=document.querySelector('header').offsetHeight;
-  if($('#secRead').getBoundingClientRect().bottom<=h)return toast('先滚回文章里，再点书签');
-  const el=[...document.querySelectorAll('#reader .p')].find(e=>e.getBoundingClientRect().bottom>h+4);
-  if(!el)return;
-  const i=+el.dataset.i;
-  if(curCh.mark&&curCh.mark.i===i)return toast('书签已在第 '+(i+1)+' 段');
-  setMark(i);
-};
 $('#bJump').onclick=()=>{
   if(!curCh||!curCh.mark)return;
   const el=document.querySelector(`#reader .p[data-i="${curCh.mark.i}"]`);if(!el)return;
@@ -1014,6 +1013,17 @@ async function init(){
   }
   setView('shelf');renderShelf();
 }
+/* 输入栏吸附键盘 */
+(()=>{
+  const vv=window.visualViewport;if(!vv)return;
+  const fit=()=>{
+    const kb=Math.max(0,Math.round(innerHeight-vv.height-vv.offsetTop));
+    document.documentElement.style.setProperty('--kb',kb+'px');
+  };
+  vv.addEventListener('resize',fit);
+  vv.addEventListener('scroll',fit);
+  fit();
+})();
 init();
 </script>
 </body>
